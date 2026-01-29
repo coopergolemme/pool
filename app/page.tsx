@@ -736,11 +736,16 @@ export default function Home() {
                           <select
                             value={form.playerC}
                             onChange={(event) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                playerC: event.target.value,
-                                winner: prev.winner === teamA ? teamA : prev.winner,
-                              }))
+                              setForm((prev) => {
+                                const nextPlayerC = event.target.value;
+                                const prevTeamA = `${prev.playerA} & ${prev.playerC}`;
+                                const nextTeamA = `${prev.playerA} & ${nextPlayerC}`;
+                                return {
+                                  ...prev,
+                                  playerC: nextPlayerC,
+                                  winner: prev.winner === prevTeamA ? nextTeamA : prev.winner,
+                                };
+                              })
                             }
                             disabled={!isSignedIn || saving}
                             className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-base text-white sm:py-2 sm:text-sm"
@@ -758,11 +763,16 @@ export default function Home() {
                           <select
                             value={form.playerD}
                             onChange={(event) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                playerD: event.target.value,
-                                winner: prev.winner === teamB ? teamB : prev.winner,
-                              }))
+                              setForm((prev) => {
+                                const nextPlayerD = event.target.value;
+                                const prevTeamB = `${prev.playerB} & ${prev.playerD}`;
+                                const nextTeamB = `${prev.playerB} & ${nextPlayerD}`;
+                                return {
+                                  ...prev,
+                                  playerD: nextPlayerD,
+                                  winner: prev.winner === prevTeamB ? nextTeamB : prev.winner,
+                                };
+                              })
                             }
                             disabled={!isSignedIn || saving}
                             className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-base text-white sm:py-2 sm:text-sm"
