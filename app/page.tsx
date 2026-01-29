@@ -408,17 +408,29 @@ export default function Home() {
     form.winner && form.winner === teamA ? "A" : form.winner === teamB ? "B" : "";
 
   const stats = useMemo(() => {
-    const leaderboard = profiles
-      .map((profile) => ({
-        player: profile.username,
-        rating: Math.round(profile.rating ?? DEFAULT_RATING),
-        rd: Math.round(profile.rd ?? DEFAULT_RD),
+    const gameStats = computeRatings(games);
+    const leaderboard = profiles.map((profile) => {
+      const record = gameStats.get(profile.username) ?? {
+        rating: profile.rating ?? DEFAULT_RATING,
+        rd: profile.rd ?? DEFAULT_RD,
+        vol: profile.vol ?? DEFAULT_VOL,
         wins: 0,
         losses: 0,
-        gamesPlayed: 0,
-        winRate: 0,
-      }))
-      .sort((a, b) => b.rating - a.rating);
+      };
+      const gamesPlayed = record.wins + record.losses;
+      const winRate = gamesPlayed ? Math.round((record.wins / gamesPlayed) * 100) : 0;
+      return {
+        player: profile.username,
+        rating: Math.round(profile.rating ?? record.rating ?? DEFAULT_RATING),
+        rd: Math.round(profile.rd ?? record.rd ?? DEFAULT_RD),
+        wins: record.wins,
+        losses: record.losses,
+        gamesPlayed,
+        winRate,
+      };
+    });
+
+    leaderboard.sort((a, b) => b.rating - a.rating || b.winRate - a.winRate);
 
     return {
       totalGames: games.length,
