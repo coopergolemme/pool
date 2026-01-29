@@ -996,33 +996,6 @@ export default function Home() {
               </div>
             </div>
           </section>
-
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h3 className="font-[var(--font-display)] text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
-                  Session Notes
-                </h3>
-                <p className="mt-2 max-w-2xl text-sm text-white/60">
-                  Capture table conditions, cue changes, or special runs so you remember why tonight mattered.
-                </p>
-              </div>
-              <button className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] sm:text-xs sm:tracking-[0.3em]">
-                Add Note
-              </button>
-            </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              {[
-                "Table 2 is playing fast with the new cloth.",
-                "Kai ran out twice on the break during 9-ball.",
-                "Amaya prefers the red 12.5mm tip for jump shots.",
-              ].map((note) => (
-                <div key={note} className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/70">
-                  {note}
-                </div>
-              ))}
-            </div>
-          </section>
         </main>
 
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-black/60 px-4 py-3 backdrop-blur sm:hidden">
