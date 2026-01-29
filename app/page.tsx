@@ -34,6 +34,161 @@ const formatLabels: Record<Game["format"], string> = {
   "8-ball-2v2": "2v2 8-Ball",
 };
 
+const GLICKO_SCALE = 173.7178;
+const DEFAULT_RATING = 1500;
+const DEFAULT_RD = 350;
+const DEFAULT_VOL = 0.06;
+const TAU = 0.5;
+
+type GlickoPlayer = {
+  rating: number;
+  rd: number;
+  vol: number;
+  wins: number;
+  losses: number;
+};
+
+const glickoG = (phi: number) => 1 / Math.sqrt(1 + (3 * phi * phi) / (Math.PI * Math.PI));
+
+const glickoE = (mu: number, muJ: number, phiJ: number) => {
+  return 1 / (1 + Math.exp(-glickoG(phiJ) * (mu - muJ)));
+};
+
+const updateSigma = (phi: number, sigma: number, delta: number, v: number) => {
+  const a = Math.log(sigma * sigma);
+  let A = a;
+  let B: number;
+  if (delta * delta > phi * phi + v) {
+    B = Math.log(delta * delta - phi * phi - v);
+  } else {
+    let k = 1;
+    while (f(a - k * TAU, phi, delta, v, a) < 0) {
+      k += 1;
+    }
+    B = a - k * TAU;
+  }
+
+  let fA = f(A, phi, delta, v, a);
+  let fB = f(B, phi, delta, v, a);
+
+  while (Math.abs(B - A) > 1e-6) {
+    const C = A + ((A - B) * fA) / (fB - fA);
+    const fC = f(C, phi, delta, v, a);
+    if (fC * fB < 0) {
+      A = B;
+      fA = fB;
+    } else {
+      fA = fA / 2;
+    }
+    B = C;
+    fB = fC;
+  }
+
+  return Math.exp(A / 2);
+};
+
+const f = (x: number, phi: number, delta: number, v: number, a: number) => {
+  const ex = Math.exp(x);
+  const num = ex * (delta * delta - phi * phi - v - ex);
+  const den = 2 * Math.pow(phi * phi + v + ex, 2);
+  return num / den - (x - a) / (TAU * TAU);
+};
+
+const parseTeam = (name: string, is2v2: boolean) => {
+  if (!is2v2) return [name];
+  return name.split(" & ").map((player) => player.trim()).filter(Boolean);
+};
+
+const computeRatings = (games: Game[]) => {
+  const players = new Map<string, GlickoPlayer>();
+
+  const ensurePlayer = (name: string) => {
+    if (!players.has(name)) {
+      players.set(name, {
+        rating: DEFAULT_RATING,
+        rd: DEFAULT_RD,
+        vol: DEFAULT_VOL,
+        wins: 0,
+        losses: 0,
+      });
+    }
+    return players.get(name)!;
+  };
+
+  const sorted = [...games].sort((a, b) => {
+    if (a.date === b.date) {
+      return a.createdAt < b.createdAt ? -1 : 1;
+    }
+    return a.date < b.date ? -1 : 1;
+  });
+
+  sorted.forEach((game) => {
+    const is2v2 = game.format === "8-ball-2v2";
+    const [sideA, sideB] = game.players;
+    if (!sideA || !sideB || !game.winner) return;
+
+    const teamAPlayers = parseTeam(sideA, is2v2);
+    const teamBPlayers = parseTeam(sideB, is2v2);
+    if (teamAPlayers.length === 0 || teamBPlayers.length === 0) return;
+
+    teamAPlayers.forEach(ensurePlayer);
+    teamBPlayers.forEach(ensurePlayer);
+
+    const teamARating =
+      teamAPlayers.reduce((sum, name) => sum + ensurePlayer(name).rating, 0) / teamAPlayers.length;
+    const teamBRating =
+      teamBPlayers.reduce((sum, name) => sum + ensurePlayer(name).rating, 0) / teamBPlayers.length;
+    const teamARD =
+      teamAPlayers.reduce((sum, name) => sum + ensurePlayer(name).rd, 0) / teamAPlayers.length;
+    const teamBRD =
+      teamBPlayers.reduce((sum, name) => sum + ensurePlayer(name).rd, 0) / teamBPlayers.length;
+    const teamAVol =
+      teamAPlayers.reduce((sum, name) => sum + ensurePlayer(name).vol, 0) / teamAPlayers.length;
+    const teamBVol =
+      teamBPlayers.reduce((sum, name) => sum + ensurePlayer(name).vol, 0) / teamBPlayers.length;
+
+    const teamAIsWinner = game.winner === sideA;
+    const scoreA = teamAIsWinner ? 1 : 0;
+    const scoreB = teamAIsWinner ? 0 : 1;
+
+    const updatePlayer = (playerName: string, oppRating: number, oppRd: number, score: number) => {
+      const player = ensurePlayer(playerName);
+      const mu = (player.rating - DEFAULT_RATING) / GLICKO_SCALE;
+      const phi = player.rd / GLICKO_SCALE;
+      const muJ = (oppRating - DEFAULT_RATING) / GLICKO_SCALE;
+      const phiJ = oppRd / GLICKO_SCALE;
+
+      const g = glickoG(phiJ);
+      const E = glickoE(mu, muJ, phiJ);
+      const v = 1 / (g * g * E * (1 - E));
+      const delta = v * g * (score - E);
+
+      const sigmaPrime = updateSigma(phi, player.vol, delta, v);
+      const phiStar = Math.sqrt(phi * phi + sigmaPrime * sigmaPrime);
+      const phiPrime = 1 / Math.sqrt(1 / (phiStar * phiStar) + 1 / v);
+      const muPrime = mu + phiPrime * phiPrime * g * (score - E);
+
+      player.rating = muPrime * GLICKO_SCALE + DEFAULT_RATING;
+      player.rd = phiPrime * GLICKO_SCALE;
+      player.vol = sigmaPrime;
+      if (score === 1) {
+        player.wins += 1;
+      } else {
+        player.losses += 1;
+      }
+    };
+
+    teamAPlayers.forEach((name) => updatePlayer(name, teamBRating, teamBRD, scoreA));
+    teamBPlayers.forEach((name) => updatePlayer(name, teamARating, teamARD, scoreB));
+
+    // Keep team volatility roughly aligned
+    teamAPlayers.forEach((name) => (ensurePlayer(name).vol = teamAVol));
+    teamBPlayers.forEach((name) => (ensurePlayer(name).vol = teamBVol));
+  });
+
+  return players;
+};
+
 const mapGame = (row: DbGame): Game => {
   const format = (row.format ?? "8-ball") as Game["format"];
   return {
@@ -61,7 +216,9 @@ export default function Home() {
     password: "",
     username: "",
   });
-  const [profiles, setProfiles] = useState<{ id: string; username: string; email: string }[]>([]);
+  const [profiles, setProfiles] = useState<
+    { id: string; username: string; email: string; rating: number; rd: number; vol: number }[]
+  >([]);
   const [form, setForm] = useState({
     date: "",
     table: "Table 1",
@@ -152,7 +309,7 @@ export default function Home() {
     const loadProfiles = async () => {
       const { data, error: profilesError } = await supabaseClient
         .from("profiles")
-        .select("id, username, email")
+        .select("id, username, email, rating, rd, vol")
         .order("username", { ascending: true });
       if (profilesError) {
         setError(profilesError.message);
@@ -165,6 +322,9 @@ export default function Home() {
             id: profile.id,
             username: profile.username,
             email: profile.email,
+            rating: profile.rating ?? DEFAULT_RATING,
+            rd: profile.rd ?? DEFAULT_RD,
+            vol: profile.vol ?? DEFAULT_VOL,
           }))
       );
     };
@@ -248,61 +408,24 @@ export default function Home() {
     form.winner && form.winner === teamA ? "A" : form.winner === teamB ? "B" : "";
 
   const stats = useMemo(() => {
-    const players = new Set<string>();
-    const totals: Record<string, { wins: number; losses: number }> = {};
-
-    games.forEach((game) => {
-      const [sideA, sideB] = game.players;
-      if (!sideA || !sideB || !game.winner) return;
-
-      const splitPlayers = (name: string) =>
-        name.includes(" & ") ? name.split(" & ").map((player) => player.trim()) : [name];
-
-      const teamAPlayers = game.format === "8-ball-2v2" ? splitPlayers(sideA) : [sideA];
-      const teamBPlayers = game.format === "8-ball-2v2" ? splitPlayers(sideB) : [sideB];
-
-      [...teamAPlayers, ...teamBPlayers].forEach((player) => {
-        if (!player) return;
-        players.add(player);
-        if (!totals[player]) totals[player] = { wins: 0, losses: 0 };
-      });
-
-      const winnerIsA = game.winner === sideA;
-      if (!winnerIsA && game.winner !== sideB) {
-        return;
-      }
-      const winningTeam = winnerIsA ? teamAPlayers : teamBPlayers;
-      const losingTeam = winnerIsA ? teamBPlayers : teamAPlayers;
-
-      winningTeam.forEach((player) => {
-        if (totals[player]) totals[player].wins += 1;
-      });
-      losingTeam.forEach((player) => {
-        if (totals[player]) totals[player].losses += 1;
-      });
-    });
-
-    const leaderboard = Array.from(players).map((player) => {
-      const record = totals[player] ?? { wins: 0, losses: 0 };
-      const gamesPlayed = record.wins + record.losses;
-      const winRate = gamesPlayed ? Math.round((record.wins / gamesPlayed) * 100) : 0;
-      return {
-        player,
-        wins: record.wins,
-        losses: record.losses,
-        gamesPlayed,
-        winRate,
-      };
-    });
-
-    leaderboard.sort((a, b) => b.wins - a.wins || b.winRate - a.winRate);
+    const leaderboard = profiles
+      .map((profile) => ({
+        player: profile.username,
+        rating: Math.round(profile.rating ?? DEFAULT_RATING),
+        rd: Math.round(profile.rd ?? DEFAULT_RD),
+        wins: 0,
+        losses: 0,
+        gamesPlayed: 0,
+        winRate: 0,
+      }))
+      .sort((a, b) => b.rating - a.rating);
 
     return {
       totalGames: games.length,
-      uniquePlayers: players.size,
+      uniquePlayers: profiles.length,
       leaderboard,
     };
-  }, [games]);
+  }, [games, profiles]);
 
   const recentGames = useMemo(() => {
     return [...games]
@@ -382,6 +505,31 @@ export default function Home() {
 
     if (data) {
       setGames((prev) => [mapGame(data), ...prev]);
+    }
+
+    // Recompute global ratings and persist to profiles.
+    const { data: allGames } = await supabase
+      .from("games")
+      .select(
+        "id, date, table_name, format, race_to, player_a, player_b, winner, score, opponent_id, opponent_email, created_at"
+      );
+    if (allGames && allGames.length > 0) {
+      const mapped = allGames.map(mapGame);
+      const ratings = computeRatings(mapped);
+      const updates = Array.from(ratings.entries()).map(([player, record]) => {
+        const profile = profiles.find((p) => p.username === player);
+        if (!profile) return null;
+        return {
+          id: profile.id,
+          rating: record.rating,
+          rd: record.rd,
+          vol: record.vol,
+        };
+      }).filter(Boolean);
+
+      if (updates.length > 0) {
+        await supabase.rpc("update_ratings", { updates: updates });
+      }
     }
 
     setForm((prev) => ({
@@ -587,7 +735,7 @@ export default function Home() {
               )}
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6">
                 <h3 className="font-[var(--font-display)] text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
-                  Leaderboard
+                  Global Leaderboard
                 </h3>
                 <div className="mt-6 space-y-4">
                   {stats.leaderboard.length === 0 ? (
@@ -605,9 +753,11 @@ export default function Home() {
                           <p className="text-lg font-medium">{player.player}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs uppercase tracking-[0.3em] text-white/60">{player.winRate}% Win</p>
+                          <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+                            {player.rating} • ±{player.rd}
+                          </p>
                           <p className="text-sm text-white/70">
-                            {player.wins}W • {player.losses}L
+                            {player.wins}W • {player.losses}L • {player.winRate}%
                           </p>
                         </div>
                       </div>
