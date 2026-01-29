@@ -115,22 +115,23 @@ export default function Home() {
 
   useEffect(() => {
     if (!supabase) return;
+    const supabaseClient = supabase;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabaseClient.auth.getSession().then(({ data }) => {
       setUserEmail(data.session?.user.email ?? null);
       setUserId(data.session?.user.id ?? null);
       if (data.session?.user?.id && data.session.user.email) {
-        void supabase
+        void supabaseClient
           .from("profiles")
           .upsert({ id: data.session.user.id, email: data.session.user.email }, { onConflict: "id" });
       }
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user.email ?? null);
       setUserId(session?.user.id ?? null);
       if (session?.user?.id && session.user.email) {
-        void supabase
+        void supabaseClient
           .from("profiles")
           .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id" });
       }
@@ -146,9 +147,10 @@ export default function Home() {
       setProfiles([]);
       return;
     }
+    const supabaseClient = supabase;
 
     const loadProfiles = async () => {
-      const { data, error: profilesError } = await supabase
+      const { data, error: profilesError } = await supabaseClient
         .from("profiles")
         .select("id, username, email")
         .order("username", { ascending: true });
