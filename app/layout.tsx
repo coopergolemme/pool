@@ -48,7 +48,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${displayFont.variable} ${bodyFont.variable} antialiased min-h-screen bg-[var(--background)] text-[var(--foreground)]`}>
         <Navigation />
-        <div className="pb-32 sm:pt-20 sm:pb-0">
+        <div className="pb-32 pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:pt-20 sm:pb-0">
           {children}
         </div>
         <Toaster position="top-center" theme="dark" />
