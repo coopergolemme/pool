@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { Navigation } from "../components/Navigation";
 
 const displayFont = Bebas_Neue({
   variable: "--font-display",
@@ -14,7 +15,7 @@ const bodyFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "BreakLine — Pool Game Tracker",
+  title: "DTD Pool Game Tracker",
   description: "Track pool games, racks, and player stats in one place.",
 };
 
@@ -25,8 +26,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
-        {children}
+      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased min-h-screen bg-[var(--background)] text-[var(--foreground)]`}>
+        <Navigation />
+        <div className="pb-24 sm:pt-20 sm:pb-0">
+          {children}
+        </div>
       </body>
     </html>
   );

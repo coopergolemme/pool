@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+export function Navigation() {
+  const pathname = usePathname();
+
+  const isActive = (path: string) => pathname === path;
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/80 backdrop-blur-lg sm:top-0 sm:bottom-auto sm:border-b sm:border-t-0">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="hidden font-[var(--font-display)] text-xl tracking-wider text-white sm:block">
+          POOL
+        </Link>
+        
+        <div className="flex w-full items-center justify-around sm:w-auto sm:gap-8">
+          <Link
+            href="/"
+            className={`flex flex-col items-center gap-1 p-2 text-xs font-medium uppercase tracking-wider transition-colors sm:flex-row sm:text-sm ${
+              isActive("/") ? "text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <span className="text-lg sm:hidden">🏠</span>
+            <span>Home</span>
+          </Link>
+
+          <Link
+            href="/leaderboard"
+            className={`flex flex-col items-center gap-1 p-2 text-xs font-medium uppercase tracking-wider transition-colors sm:flex-row sm:text-sm ${
+              isActive("/leaderboard") ? "text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <span className="text-lg sm:hidden">🏆</span>
+            <span>Leaderboard</span>
+          </Link>
+
+          <Link
+            href="/add"
+            className={`flex flex-col items-center gap-1 p-2 text-xs font-medium uppercase tracking-wider transition-colors sm:flex-row sm:text-sm ${
+              isActive("/add") ? "text-white" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            <span className="text-lg sm:hidden">🎱</span>
+            <span>Add Game</span>
+          </Link>
+        </div>
+      </div>
+    </nav>
+  );
+}

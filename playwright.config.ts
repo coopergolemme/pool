@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import path from "node:path";
 
 export default defineConfig({
   testDir: "./tests",
@@ -18,4 +19,5 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
+  globalSetup: path.resolve("./tests/global-setup.ts"),
 });
