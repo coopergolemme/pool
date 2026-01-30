@@ -6,6 +6,7 @@ import { Game } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { haptic } from "../lib/haptics";
+import { toast } from "sonner";
 
 interface PendingGamesProps {
   userId: string | null;
@@ -63,8 +64,12 @@ export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) 
             .eq("id", gameId);
           
           if (!error) {
+              toast.success("Game verified!");
               onUpdate(); // Refresh parent data
               setPendingGames(prev => prev.filter(g => g.id !== gameId));
+          } else {
+              console.error("Error verifying game:", error);
+              toast.error("Failed to verify: " + error.message);
           }
       } else {
           const { error } = await supabase
@@ -73,8 +78,12 @@ export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) 
             .eq("id", gameId);
 
           if (!error) {
+              toast.success("Game rejected");
               onUpdate();
               setPendingGames(prev => prev.filter(g => g.id !== gameId));
+          } else {
+              console.error("Error rejecting game:", error);
+              toast.error("Failed to reject: " + error.message);
           }
       }
   };
