@@ -26,6 +26,7 @@ export default function AddGamePage() {
     playerD: "",
     winner: "",
     score: "",
+    ballsRemaining: "3",
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function AddGamePage() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [userId]); // Add userId to dependency array so it re-runs when user logs in
+  }, [userId]); 
 
   const handleSignIn = async (authForm: any) => {
     if (!supabase) return;
@@ -136,6 +137,7 @@ export default function AddGamePage() {
       opponent_email: opponent.email,
       status: "pending",
       submitted_by: userId,
+      balls_remaining: form.ballsRemaining ? parseInt(form.ballsRemaining) : null,
     };
 
     const { error: insertError } = await supabase.from("games").insert(payload);
@@ -171,9 +173,6 @@ export default function AddGamePage() {
         }).filter(Boolean);
         
         if (updates.length > 0) {
-           // We can't use rpc("update_ratings") anymore because it might not support the new column yet
-           // or we need to update the RPC. 
-           // Alternatively, just upsert profiles directly. It's safe given minimal concurrency.
            const { error } = await supabase.from("profiles").upsert(updates);
            if (error) console.error("Error updating ratings/streaks", error);
         }

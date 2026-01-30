@@ -126,6 +126,44 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
               </Button>
             </div>
           </div>
+
+
+          <div className="space-y-2 text-[10px] uppercase tracking-[0.25em] text-white/60 sm:text-xs sm:tracking-[0.3em]">
+            Won By (Balls Remaining)
+            <div className="flex items-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-12 rounded-xl p-0 text-xl font-bold"
+                onClick={() => {
+                  const current = parseInt(form.ballsRemaining) || 0;
+                  if (current > 0) updateForm({ ballsRemaining: (current - 1).toString() });
+                }}
+                disabled={!isSignedIn || saving}
+              >
+                -
+              </Button>
+              
+              <div className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 text-center">
+                <span className="text-2xl font-bold text-white normal-case tracking-normal">
+                  {form.ballsRemaining}
+                </span>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-12 rounded-xl p-0 text-xl font-bold"
+                onClick={() => {
+                   const current = parseInt(form.ballsRemaining) || 0;
+                   if (current < 7) updateForm({ ballsRemaining: (current + 1).toString() });
+                }}
+                disabled={!isSignedIn || saving}
+              >
+                +
+              </Button>
+            </div>
+          </div>
         </div>
 
         <Button

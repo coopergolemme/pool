@@ -9,6 +9,7 @@ export type Game = {
   createdAt: string;
   status: "pending" | "verified";
   submittedBy?: string;
+  ballsRemaining?: number | null;
 };
 
 export const GLICKO_SCALE = 173.7178;

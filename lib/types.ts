@@ -15,6 +15,7 @@ export type DbGame = {
   created_at: string | null;
   status: string | null;
   submitted_by: string | null;
+  balls_remaining: number | null;
 };
 
 export const mapGame = (row: DbGame): Game => {
@@ -30,6 +31,7 @@ export const mapGame = (row: DbGame): Game => {
     createdAt: row.created_at ?? "",
     status: (row.status as "pending" | "verified") ?? "verified",
     submittedBy: row.submitted_by ?? undefined,
+    ballsRemaining: row.balls_remaining ?? null,
   };
 };
 

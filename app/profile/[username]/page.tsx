@@ -99,10 +99,20 @@ export default function ProfilePage() {
     const gamesPlayed = record.wins + record.losses;
     const winRate = gamesPlayed ? Math.round((record.wins / gamesPlayed) * 100) : 0;
     
+    // Calculate Avg Balls Won
+    const wonGamesWithBallsRecord = games.filter(
+        g => g.winner === username && g.status === "verified" && g.ballsRemaining !== null && g.ballsRemaining !== undefined
+    );
+    const totalBallsWon = wonGamesWithBallsRecord.reduce((sum, g) => sum + (g.ballsRemaining || 0), 0);
+    const avgBallsWon = wonGamesWithBallsRecord.length > 0 
+        ? (totalBallsWon / wonGamesWithBallsRecord.length).toFixed(1) 
+        : "-";
+
     return {
         ...record,
         gamesPlayed,
         winRate,
+        avgBallsWon,
         rating: Math.round(record.rating),
         rd: Math.round(record.rd),
     };
@@ -226,11 +236,16 @@ export default function ProfilePage() {
                  </div>
                  <p className="text-[10px] text-white/40">{stats.streak > 0 ? "Wins" : "Losses"}</p>
              </div>
-              <div 
-                 onClick={() => setActiveFilter("all")}
-                 className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-widest text-white/50">Avg Won By</p>
+                  <p className="text-2xl font-bold text-white">{stats.avgBallsWon}</p>
+                  <p className="text-[10px] text-white/40">balls remaining</p>
+              </div>
+               <div 
+                  onClick={() => setActiveFilter("all")}
+                  className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${
                     activeFilter === "all" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"
-                 } ${!vsRecord ? "col-span-2 sm:col-span-1" : ""}`}
+                 } ${!vsRecord ? "col-span-2 sm:col-span-full" : ""}`}
               >
                  <p className="text-xs uppercase tracking-widest text-white/50">Games</p>
                  <p className="text-2xl font-bold text-white">{stats.gamesPlayed}</p>
