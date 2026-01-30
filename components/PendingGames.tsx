@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase/client";
 import { Game } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { haptic } from "../lib/haptics";
 
 interface PendingGamesProps {
   userId: string | null;
@@ -113,13 +114,19 @@ export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) 
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => handleAction(game.id, "reject")}
+                  onClick={() => {
+                    haptic.medium();
+                    handleAction(game.id, "reject");
+                  }}
                   className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/20 transition-colors"
                 >
                   Reject
                 </button>
                 <button
-                  onClick={() => handleAction(game.id, "accept")}
+                  onClick={() => {
+                    haptic.success();
+                    handleAction(game.id, "accept");
+                  }}
                   className="rounded-xl bg-green-500 text-black px-6 py-2 text-sm font-bold hover:bg-green-400 transition-colors"
                 >
                   Verify

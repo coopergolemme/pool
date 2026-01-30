@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { haptic } from "../lib/haptics";
 
 export function Navigation() {
   const pathname = usePathname();
@@ -18,6 +19,7 @@ export function Navigation() {
         <div className="flex w-full items-center justify-around sm:w-auto sm:gap-8">
           <Link
             href="/"
+            onClick={() => haptic.light()}
             className={`flex flex-col items-center gap-1 p-2 text-xs font-medium uppercase tracking-wider transition-colors sm:flex-row sm:text-sm ${
               isActive("/") ? "text-white" : "text-white/50 hover:text-white/80"
             }`}
@@ -28,6 +30,7 @@ export function Navigation() {
 
           <Link
             href="/leaderboard"
+            onClick={() => haptic.light()}
             className={`flex flex-col items-center gap-1 p-2 text-xs font-medium uppercase tracking-wider transition-colors sm:flex-row sm:text-sm ${
               isActive("/leaderboard") ? "text-white" : "text-white/50 hover:text-white/80"
             }`}
@@ -38,6 +41,7 @@ export function Navigation() {
 
           <Link
             href="/add"
+            onClick={() => haptic.light()}
             className={`flex flex-col items-center gap-1 p-2 text-xs font-medium uppercase tracking-wider transition-colors sm:flex-row sm:text-sm ${
               isActive("/add") ? "text-white" : "text-white/50 hover:text-white/80"
             }`}

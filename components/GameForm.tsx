@@ -1,3 +1,4 @@
+import { haptic } from "../lib/haptics";
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
 import { Card } from "./ui/Card";
@@ -137,7 +138,10 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
                 className="h-12 w-12 rounded-xl p-0 text-xl font-bold"
                 onClick={() => {
                   const current = parseInt(form.ballsRemaining) || 0;
-                  if (current > 0) updateForm({ ballsRemaining: (current - 1).toString() });
+                  if (current > 0) {
+                    haptic.light();
+                    updateForm({ ballsRemaining: (current - 1).toString() });
+                  }
                 }}
                 disabled={!isSignedIn || saving}
               >
@@ -156,7 +160,10 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
                 className="h-12 w-12 rounded-xl p-0 text-xl font-bold"
                 onClick={() => {
                    const current = parseInt(form.ballsRemaining) || 0;
-                   if (current < 7) updateForm({ ballsRemaining: (current + 1).toString() });
+                   if (current < 7) {
+                     haptic.light();
+                     updateForm({ ballsRemaining: (current + 1).toString() });
+                   }
                 }}
                 disabled={!isSignedIn || saving}
               >
@@ -170,6 +177,7 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
           type="submit"
           className="w-full"
            disabled={!isSignedIn || saving || !form.winner}
+           onClick={() => haptic.medium()}
         >
           {saving ? "Saving..." : "Add Game Result"}
         </Button>
