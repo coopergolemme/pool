@@ -51,7 +51,15 @@ export default function RootLayout({
         <div className="pb-32 pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:pt-20 sm:pb-0">
           {children}
         </div>
-        <Toaster position="top-center" theme="dark" />
+        <Toaster 
+          position="top-center" 
+          theme="dark" 
+          toastOptions={{
+            style: {
+              marginTop: 'calc(env(safe-area-inset-top) + 0.5rem)',
+            },
+          }}
+        />
       </body>
     </html>
   );
