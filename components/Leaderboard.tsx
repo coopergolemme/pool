@@ -27,16 +27,17 @@ export function Leaderboard({ leaderboard }: LeaderboardProps) {
           </div>
         ) : (
           leaderboard.map((player, index) => (
-            <div
+            <Link
               key={player.player}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/40 px-4 py-3"
+              href={`/profile/${encodeURIComponent(player.player)}`}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/40 px-4 py-3 hover:border-white/30 transition-colors"
             >
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/60">#{index + 1}</p>
                 <div className="flex items-center gap-2">
-                    <Link href={`/profile/${encodeURIComponent(player.player)}`} className="text-lg font-medium hover:underline hover:text-white">
+                    <span className="text-lg font-medium text-white">
                         {player.player}
-                    </Link>
+                    </span>
                     {Math.abs(player.streak) >= 3 && (
                         <div className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider font-bold ${player.streak > 0 ? "bg-orange-900/40 text-orange-200" : "bg-blue-900/40 text-blue-200"}`}>
                             {player.streak > 0 ? "🔥" : "❄️"} {Math.abs(player.streak)}
@@ -53,7 +54,7 @@ export function Leaderboard({ leaderboard }: LeaderboardProps) {
                 </p>
                 <p className="text-sm text-white/70">{player.winRate}% win</p>
               </div>
-            </div>
+            </Link>
           ))
         )}
       </div>

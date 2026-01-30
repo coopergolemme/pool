@@ -58,6 +58,7 @@ export default function LeaderboardPage() {
 
   const stats = useMemo(() => {
     const gameStats = computeRatings(games);
+    
     const leaderboard = profiles.map((profile) => {
       const record = gameStats.get(profile.username) ?? {
         rating: profile.rating ?? DEFAULT_RATING,
@@ -68,14 +69,9 @@ export default function LeaderboardPage() {
         streak: profile.streak ?? 0,
       };
       
-      // If we have persisted ratings in profiles, use them, otherwise use computed
-      // Actually, computeRatings re-calculates everything from scratch based on history.
-      // But we might want to trust the profile if it's updated.
-      // For now, let's use the computed ones as they are fresh from the game history we just fetched.
-      
       const gamesPlayed = record.wins + record.losses;
       const winRate = gamesPlayed ? Math.round((record.wins / gamesPlayed) * 100) : 0;
-      
+
       return {
         player: profile.username,
         rating: Math.round(record.rating),
@@ -90,10 +86,6 @@ export default function LeaderboardPage() {
 
     leaderboard.sort((a, b) => b.rating - a.rating || b.winRate - a.winRate);
     
-    // Optional: Filter out players with 0 games if "correctly show record" implies hiding inactive players
-    // or keep them. The user said "global leaderboard", usually implies everyone.
-    // But if stats are 0-0, maybe they shouldn't be there?
-    // Let's filter out those with 0 games played to clean up the view.
     return leaderboard.filter(p => p.gamesPlayed > 0);
   }, [games, profiles]);
 

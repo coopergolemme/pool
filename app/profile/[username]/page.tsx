@@ -12,9 +12,37 @@ export default function ProfilePage() {
   const rawUsername = params.username as string;
   const username = decodeURIComponent(rawUsername);
 
+  const [currentUserProfile, setCurrentUserProfile] = useState<{ username: string } | null>(null);
+
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<{ id: string; username: string; email: string; rating: number; rd: number; vol: number; streak: number } | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    
+    supabase.auth.getSession().then(async ({ data }) => {
+        if (data.session?.user?.id) {
+            if (!supabase) return;
+            const { data: userData } = await supabase.from("profiles").select("username").eq("id", data.session.user.id).single();
+            if (userData) setCurrentUserProfile(userData);
+        }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user?.id) {
+             if (!supabase) return;
+             const { data: userData } = await supabase.from("profiles").select("username").eq("id", session.user.id).single();
+             if (userData) setCurrentUserProfile(userData);
+        } else {
+            setCurrentUserProfile(null);
+        }
+    });
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabase || !username) return;
@@ -79,9 +107,30 @@ export default function ProfilePage() {
     };
   }, [games, username, profile]);
 
+  const [activeFilter, setActiveFilter] = useState<"all" | "h2h">("all");
+
   const playerGames = useMemo(() => {
-      return games.filter(g => g.players.includes(username));
-  }, [games, username]);
+      const allPlayerGames = games.filter(g => g.players.includes(username));
+      
+      if (activeFilter === "h2h" && currentUserProfile && currentUserProfile.username !== username) {
+          return allPlayerGames.filter(g => g.players.includes(currentUserProfile.username));
+      }
+      return allPlayerGames;
+  }, [games, username, activeFilter, currentUserProfile]);
+
+  const vsRecord = useMemo(() => {
+      if (!currentUserProfile || !username || currentUserProfile.username === username) return null;
+      
+      const vsGames = games.filter(g => g.players.includes(currentUserProfile.username) && g.players.includes(username));
+      let wins = 0;
+      let losses = 0;
+      vsGames.forEach(g => {
+          if (g.winner === currentUserProfile.username) wins++;
+          else if (g.winner === username) losses++;
+      });
+      
+      return wins > 0 || losses > 0 ? `${wins}-${losses}` : null;
+  }, [games, username, currentUserProfile]);
 
   const ratingHistory = useMemo(() => computeRatingHistory(games), [games]);
 
@@ -122,12 +171,26 @@ export default function ProfilePage() {
                  </div>
                  <p className="text-[10px] text-white/40">{stats.streak > 0 ? "Wins" : "Losses"}</p>
              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+              <div 
+                 onClick={() => setActiveFilter("all")}
+                 className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "all" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"}`}
+              >
                  <p className="text-xs uppercase tracking-widest text-white/50">Games</p>
                  <p className="text-2xl font-bold text-white">{stats.gamesPlayed}</p>
              </div>
+             {vsRecord && (
+                 <div 
+                     onClick={() => setActiveFilter("h2h")}
+                     className={`rounded-2xl border bg-white/5 p-4 text-center col-span-2 sm:col-span-full mt-4 sm:mt-0 pt-4 cursor-pointer transition-colors ${activeFilter === "h2h" ? "border-purple-500 bg-white/10 shadow-[0_0_15px_rgba(168,85,247,0.2)]" : "border-white/10 border-t-2 sm:border-t hover:bg-white/10"}`}
+                 >
+                     <p className="text-xs uppercase tracking-widest text-white/50">Vs You</p>
+                     <p className="text-2xl font-bold text-white">{vsRecord}</p>
+                 </div>
+             )}
         </div>
       </div>
+
+
 
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6">
         <RecentGames games={playerGames} loading={loading} ratingHistory={ratingHistory} />
