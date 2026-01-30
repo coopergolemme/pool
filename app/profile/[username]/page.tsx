@@ -7,6 +7,7 @@ import { RecentGames } from "../../../components/RecentGames";
 import { RatingChart } from "../../../components/RatingChart";
 import { computeRatings, computeRatingHistory, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../../../lib/glicko";
 import { mapGame } from "../../../lib/types";
+import { Skeleton } from "../../../components/ui/Skeleton";
 
 export default function ProfilePage() {
   const params = useParams();
@@ -201,7 +202,26 @@ export default function ProfilePage() {
   }, [games, ratingHistory, username, currentUserProfile]);
 
   if (loading) {
-      return <div className="p-8 text-center text-white/50">Loading profile...</div>;
+      return (
+        <div className="mx-auto max-w-4xl p-4 sm:p-6 pb-24">
+            <div className="mb-8">
+                <Skeleton className="h-12 w-64 mb-6" />
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <Skeleton className="h-24 rounded-2xl col-span-2" />
+                    <Skeleton className="h-24 rounded-2xl" />
+                    <Skeleton className="h-24 rounded-2xl" />
+                    <Skeleton className="h-24 rounded-2xl" />
+                    <Skeleton className="h-16 rounded-2xl col-span-2 sm:col-span-full" />
+                </div>
+            </div>
+            <div className="mb-8">
+                <Skeleton className="h-64 w-full rounded-3xl" />
+            </div>
+            <div className="space-y-4">
+                <Skeleton className="h-40 w-full rounded-3xl" />
+            </div>
+        </div>
+      );
   }
 
   if (!profile && !loading && playerGames.length === 0) {
