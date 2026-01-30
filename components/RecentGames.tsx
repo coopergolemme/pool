@@ -4,16 +4,17 @@ import Link from "next/link";
 
 interface RecentGamesProps {
   games: Game[];
+  title?: string;
   loading: boolean;
   ratingHistory?: Record<string, Record<string, { rating: number; delta: number }>>;
 }
 
-export function RecentGames({ games, loading, ratingHistory }: RecentGamesProps) {
+export function RecentGames({ games, title, loading, ratingHistory }: RecentGamesProps) {
   return (
     <div className="mt-1">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs uppercase tracking-[0.3em] text-white/60 sm:text-sm sm:tracking-[0.4em]">
-          Recent Games
+        <h3 className="text-xs uppercase tracking-[0.3em] text-white/60 sm:text-sm sm:tracking-[0.4em]">  
+          {title || "Recent Games"}
         </h3>
       </div>
       <div className="mt-2 space-y-3">

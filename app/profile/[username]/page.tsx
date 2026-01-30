@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase/client";
 import { RecentGames } from "../../../components/RecentGames";
+import { RatingChart } from "../../../components/RatingChart";
 import { computeRatings, computeRatingHistory, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../../../lib/glicko";
 import { mapGame } from "../../../lib/types";
 
@@ -134,6 +135,59 @@ export default function ProfilePage() {
 
   const ratingHistory = useMemo(() => computeRatingHistory(games), [games]);
 
+  // Compute chart data from games and rating history
+  const chartData = useMemo(() => {
+    if (!games.length || !ratingHistory) return [];
+
+    // Clone and sort games chronologically (Oldest -> Newest)
+    const sortedGames = [...games].sort((a, b) => {
+        if (a.date === b.date) {
+            return a.createdAt < b.createdAt ? -1 : 1;
+        }
+        return a.date < b.date ? -1 : 1;
+    });
+
+    const data = [];
+    let gameIndex = 0;
+    
+    // We want to track the *current user's* rating as we walk through history
+    // giving us a point-in-time comparison.
+    // If not signed in, this stays null/undefined.
+    let currentCtxUserRating: number | undefined = undefined;
+
+    // We also need the *profile user's* rating to plot.
+    // We only plot points where the profile user effectively played.
+    
+    for (const game of sortedGames) {
+        // Update current user's rating state if they played in this game
+        if (currentUserProfile && game.players.includes(currentUserProfile.username)) {
+            const h = ratingHistory[game.id]?.[currentUserProfile.username];
+            if (h) {
+                currentCtxUserRating = h.rating;
+            }
+        }
+
+        // Only include games where the *profile* player played for the main line
+        if (!game.players.includes(username)) continue;
+
+        const history = ratingHistory[game.id];
+        if (history && history[username]) {
+            const opponent = game.players.find(p => p !== username);
+            const isWinner = game.winner === username;
+            
+            data.push({
+                date: game.date,
+                rating: history[username].rating,
+                gameIndex: gameIndex++,
+                opponent,
+                result: isWinner ? "W" : "L" as "W" | "L", // Explicit cast for TS
+                userRating: currentCtxUserRating, // Snapshot of your rating at that time
+            });
+        }
+    }
+    return data;
+  }, [games, ratingHistory, username, currentUserProfile]);
+
   if (loading) {
       return <div className="p-8 text-center text-white/50">Loading profile...</div>;
   }
@@ -151,7 +205,7 @@ export default function ProfilePage() {
           {username}
         </h1>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center col-span-2">
                  <p className="text-xs uppercase tracking-widest text-white/50">Rating</p>
                  <p className="text-2xl font-bold text-white">{stats.rating}</p>
                  <p className="text-[10px] text-white/40">±{stats.rd}</p>
@@ -181,7 +235,7 @@ export default function ProfilePage() {
              {vsRecord && (
                  <div 
                      onClick={() => setActiveFilter("h2h")}
-                     className={`rounded-2xl border bg-white/5 p-4 text-center col-span-2 sm:col-span-full mt-4 sm:mt-0 pt-4 cursor-pointer transition-colors ${activeFilter === "h2h" ? "border-purple-500 bg-white/10 shadow-[0_0_15px_rgba(168,85,247,0.2)]" : "border-white/10 border-t-2 sm:border-t hover:bg-white/10"}`}
+                     className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "h2h" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"}`}
                  >
                      <p className="text-xs uppercase tracking-widest text-white/50">Vs You</p>
                      <p className="text-2xl font-bold text-white">{vsRecord}</p>
@@ -190,10 +244,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-
+      <div className="mb-8">
+        <RatingChart data={chartData} />
+      </div>
 
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6">
-        <RecentGames games={playerGames} loading={loading} ratingHistory={ratingHistory} />
+        <RecentGames title={activeFilter === "all" ? "Recent Games" : "Head-to-Head"} games={playerGames} loading={loading} ratingHistory={ratingHistory} />
       </div>
     </div>
   );
