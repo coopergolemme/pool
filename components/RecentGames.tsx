@@ -1,5 +1,6 @@
 import { formatLabels } from "../lib/types";
 import { type Game } from "../lib/glicko";
+import Link from "next/link";
 
 interface RecentGamesProps {
   games: Game[];
@@ -33,9 +34,9 @@ export function RecentGames({ games, loading, ratingHistory }: RecentGamesProps)
                  const stats = history?.[name];
                  return (
                     <span className="flex items-center gap-2">
-                        <span className={isWinner ? "font-bold text-green-400" : "font-normal text-red-400/80"}>
+                        <Link href={`/profile/${encodeURIComponent(name)}`} className={`${isWinner ? "font-bold text-green-400" : "font-normal text-red-400/80"} hover:underline`}>
                             {name}
-                        </span>
+                        </Link>
                         {stats && (
                             <span className="text-[10px] font-mono text-white/40">
                                 {Math.round(stats.rating)} 

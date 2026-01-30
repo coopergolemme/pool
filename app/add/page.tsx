@@ -164,11 +164,16 @@ export default function AddGamePage() {
               rating: record.rating,
               rd: record.rd,
               vol: record.vol,
+              streak: record.streak,
             };
         }).filter(Boolean);
         
         if (updates.length > 0) {
-            await supabase.rpc("update_ratings", { updates });
+           // We can't use rpc("update_ratings") anymore because it might not support the new column yet
+           // or we need to update the RPC. 
+           // Alternatively, just upsert profiles directly. It's safe given minimal concurrency.
+           const { error } = await supabase.from("profiles").upsert(updates);
+           if (error) console.error("Error updating ratings/streaks", error);
         }
     }
   };

@@ -1,4 +1,5 @@
 import { Card } from "./ui/Card";
+import Link from "next/link";
 
 interface LeaderboardProps {
   leaderboard: {
@@ -33,7 +34,9 @@ export function Leaderboard({ leaderboard }: LeaderboardProps) {
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/60">#{index + 1}</p>
                 <div className="flex items-center gap-2">
-                    <p className="text-lg font-medium">{player.player}</p>
+                    <Link href={`/profile/${encodeURIComponent(player.player)}`} className="text-lg font-medium hover:underline hover:text-white">
+                        {player.player}
+                    </Link>
                     {Math.abs(player.streak) >= 3 && (
                         <div className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider font-bold ${player.streak > 0 ? "bg-orange-900/40 text-orange-200" : "bg-blue-900/40 text-blue-200"}`}>
                             {player.streak > 0 ? "🔥" : "❄️"} {Math.abs(player.streak)}

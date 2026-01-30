@@ -9,7 +9,7 @@ import { mapGame } from "../../lib/types";
 export default function LeaderboardPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [profiles, setProfiles] = useState<
-    { id: string; username: string; email: string; rating: number; rd: number; vol: number }[]
+    { id: string; username: string; email: string; rating: number; rd: number; vol: number; streak: number }[]
   >([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +30,7 @@ export default function LeaderboardPage() {
 
       const { data: profilesData } = await supabase
         .from("profiles")
-        .select("id, username, email, rating, rd, vol");
+        .select("id, username, email, rating, rd, vol, streak");
 
       if (gamesData) setGames(gamesData.map(mapGame));
       
@@ -45,6 +45,7 @@ export default function LeaderboardPage() {
               rating: p.rating ?? DEFAULT_RATING,
               rd: p.rd ?? DEFAULT_RD,
               vol: p.vol ?? DEFAULT_VOL,
+              streak: p.streak ?? 0,
             }))
         );
       }
@@ -64,7 +65,7 @@ export default function LeaderboardPage() {
         vol: profile.vol ?? DEFAULT_VOL,
         wins: 0,
         losses: 0,
-        streak: 0,
+        streak: profile.streak ?? 0,
       };
       
       // If we have persisted ratings in profiles, use them, otherwise use computed

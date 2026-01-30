@@ -159,8 +159,10 @@ export const computeRatings = (games: Game[]) => {
       player.vol = sigmaPrime;
       if (score === 1) {
         player.wins += 1;
+        player.streak = player.streak > 0 ? player.streak + 1 : 1;
       } else {
         player.losses += 1;
+        player.streak = player.streak < 0 ? player.streak - 1 : -1;
       }
     };
 
@@ -269,8 +271,10 @@ export const computeRatingHistory = (games: Game[]): RatingHistory => {
       player.vol = sigmaPrime;
       if (score === 1) {
         player.wins += 1;
+        player.streak = player.streak > 0 ? player.streak + 1 : 1;
       } else {
         player.losses += 1;
+        player.streak = player.streak < 0 ? player.streak - 1 : -1;
       }
     };
 
