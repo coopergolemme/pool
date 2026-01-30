@@ -10,6 +10,7 @@ import { AuthForm } from "../components/AuthForm";
 import { PendingGames } from "../components/PendingGames";
 import { StreakLeaders } from "../components/StreakLeaders";
 import { UserStatsCard } from "../components/UserStatsCard";
+import { Skeleton } from "../components/ui/Skeleton";
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
@@ -17,6 +18,7 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -56,6 +58,7 @@ export default function Home() {
     supabase.auth.getSession().then(({ data }) => {
       setUserEmail(data.session?.user.email ?? null);
       setUserId(data.session?.user.id ?? null);
+      setIsCheckingSession(false);
     });
 
       if (!supabase) return;
@@ -144,7 +147,13 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-8">
              <div className="space-y-6">
                  {/* User Stats or Sign In */}
-                 {userEmail && userName ? (
+                 {isCheckingSession ? (
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
+                        <Skeleton className="h-8 w-1/2 mb-4" />
+                        <Skeleton className="h-10 w-full mb-2" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                 ) : userEmail && userName ? (
                      <UserStatsCard stats={userStats} username={userName} />
                  ) : (
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6">

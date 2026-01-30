@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase/client";
 import { Leaderboard } from "../../components/Leaderboard";
 import { computeRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../../lib/glicko";
 import { mapGame } from "../../lib/types";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 export default function LeaderboardPage() {
   const [games, setGames] = useState<Game[]>([]);
@@ -99,7 +100,11 @@ export default function LeaderboardPage() {
       </div>
       
       {loading ? (
-        <div className="text-center text-white/50">Loading stats...</div>
+        <div className="space-y-4">
+           {[...Array(8)].map((_, i) => (
+             <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+           ))}
+        </div>
       ) : (
         <Leaderboard leaderboard={stats} />
       )}

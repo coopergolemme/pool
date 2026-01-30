@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase/client";
 import { Game } from "../lib/glicko";
 import { mapGame } from "../lib/types";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface PendingGamesProps {
   userId: string | null;
@@ -86,8 +87,17 @@ export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) 
           <span>⚠️</span> Pending Verification
         </h2>
         <div className="space-y-3">
+          <AnimatePresence>
           {pendingGames.map((game) => (
-            <div key={game.id} className="flex flex-col gap-4 rounded-2xl border border-white/5 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <motion.div 
+               key={game.id} 
+               layout
+               initial={{ opacity: 0, height: 0 }}
+               animate={{ opacity: 1, height: "auto" }}
+               exit={{ opacity: 0, height: 0, scale: 0.95 }}
+               transition={{ duration: 0.2 }}
+               className="flex flex-col gap-4 rounded-2xl border border-white/5 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between overflow-hidden"
+            >
               <div>
                 <p className="text-sm font-medium text-white/90">
                   vs {game.players.find(p => p !== userName) || "Opponent"}
@@ -115,8 +125,9 @@ export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) 
                   Verify
                 </button>
               </div>
-            </div>
+            </motion.div>
           ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>

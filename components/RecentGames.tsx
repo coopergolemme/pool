@@ -1,6 +1,8 @@
 import { formatLabels } from "../lib/types";
 import { type Game } from "../lib/glicko";
 import Link from "next/link";
+import { Skeleton } from "./ui/Skeleton";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface RecentGamesProps {
   games: Game[];
@@ -19,15 +21,18 @@ export function RecentGames({ games, title, loading, ratingHistory }: RecentGame
       </div>
       <div className="mt-2 space-y-3">
         {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-6 text-sm text-white/70">
-            Loading games from Supabase...
-          </div>
+           <div className="space-y-3">
+             {[...Array(5)].map((_, i) => (
+               <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+             ))}
+           </div>
         ) : games.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-black/40 px-4 py-6 text-sm text-white/70">
             No games yet. Add the first result to start tracking.
           </div>
         ) : (
-          games.map((game) => {
+          <AnimatePresence initial={false}>
+            {games.map((game) => {
              const isP1Winner = game.winner === game.players[0];
              const history = ratingHistory?.[game.id];
              
@@ -51,8 +56,12 @@ export function RecentGames({ games, title, loading, ratingHistory }: RecentGame
              };
 
              return (
-            <div
+            <motion.div
               key={game.id}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
               className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="flex-1">
@@ -77,9 +86,10 @@ export function RecentGames({ games, title, loading, ratingHistory }: RecentGame
                   {renderPlayer(game.players[1], !isP1Winner)}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
-          })
+          })}
+          </AnimatePresence>
         )}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Space_Grotesk } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { Navigation } from "../components/Navigation";
 
@@ -50,6 +51,7 @@ export default function RootLayout({
         <div className="pb-32 sm:pt-20 sm:pb-0">
           {children}
         </div>
+        <Toaster position="top-center" theme="dark" />
       </body>
     </html>
   );

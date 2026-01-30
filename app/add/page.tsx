@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase/client";
 import { GameForm } from "../../components/GameForm";
@@ -146,6 +147,7 @@ export default function AddGamePage() {
       setError(insertError.message);
     } else {
       setSuccess("Game submitted! Waiting for opponent verification.");
+      toast.success("Game submitted successfully!");
       setForm(prev => ({ ...prev, winner: "", score: "" }));
        // Update ratings in background
        updateRatings();
@@ -193,7 +195,6 @@ export default function AddGamePage() {
       ) : (
         <>
             {error && <div className="mb-4 rounded bg-red-500/10 p-4 text-red-200 border border-red-500/20">{error}</div>}
-            {success && <div className="mb-4 rounded bg-green-500/10 p-4 text-green-200 border border-green-500/20">{success}</div>}
             
             <GameForm
                 form={form}
