@@ -73,7 +73,8 @@ export default function ProfilePage() {
       const { data: gamesData } = await supabase
         .from("games")
         .select("*")
-        .order("date", { ascending: false });
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
 
       if (gamesData) setGames(gamesData.map(mapGame));
 
