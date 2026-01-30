@@ -13,6 +13,8 @@ export type DbGame = {
   opponent_id: string | null;
   opponent_email: string | null;
   created_at: string | null;
+  status: string | null;
+  submitted_by: string | null;
 };
 
 export const mapGame = (row: DbGame): Game => {
@@ -26,6 +28,8 @@ export const mapGame = (row: DbGame): Game => {
     winner: row.winner ?? "",
     score: row.score ?? "",
     createdAt: row.created_at ?? "",
+    status: (row.status as "pending" | "verified") ?? "verified",
+    submittedBy: row.submitted_by ?? undefined,
   };
 };
 

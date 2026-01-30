@@ -3,11 +3,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase/client";
 import { Header } from "../components/Header";
-import { SessionStats } from "../components/SessionOverview";
 import { RecentGames } from "../components/RecentGames";
 import { computeRatingHistory, computeRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { AuthForm } from "../components/AuthForm";
+import { PendingGames } from "../components/PendingGames";
+import { StreakLeaders } from "../components/StreakLeaders";
+import { UserStatsCard } from "../components/UserStatsCard";
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
@@ -17,6 +19,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!supabase) {
@@ -72,7 +75,7 @@ export default function Home() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     if (userId && profiles.length > 0) {
@@ -112,17 +115,20 @@ export default function Home() {
     setAuthLoading(false);
   };
 
-  const stats = useMemo(() => {
-    return {
-      totalGames: games.length, // accurate enough for recent
-      uniquePlayers: profiles.length,
-    };
-  }, [games, profiles]);
+  const verifiedGames = useMemo(() => games.filter(g => g.status === "verified"), [games]);
+  const ratingHistory = useMemo(() => computeRatingHistory(verifiedGames), [verifiedGames]);
 
-  const ratingHistory = useMemo(() => computeRatingHistory(games), [games]);
+  // Compute Glicko stats for all players to find streak leaders
+  const playerStats = useMemo(() => computeRatings(verifiedGames), [verifiedGames]);
+
+  // Find current user's stats
+  const userStats = useMemo(() => {
+      if (!userName || !playerStats) return null;
+      return playerStats.get(userName) ?? null;
+  }, [userName, playerStats]);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pb-24 pt-8 sm:px-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
       <Header
         userEmail={userEmail}
         userName={userName}
@@ -130,27 +136,36 @@ export default function Home() {
         authLoading={authLoading}
       />
 
-      <div className="grid  lg:grid-cols-[1fr_1fr]">
-         <div className="space-y-6">
-            {!userEmail && (
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6">
-                    <h2 className="mb-4 text-xl font-bold">Sign In</h2>
-                    <AuthForm
-                    onSignIn={handleSignIn}
-                    onSignUp={handleSignUp}
-                    loading={authLoading}
-                    />
-                </div>
-            )}
-            {/* <SessionStats
-                totalGames={stats.totalGames}
-                uniquePlayers={stats.uniquePlayers}
-            /> */}
-         </div>
-        
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6">
-          <RecentGames games={games} loading={loading} ratingHistory={ratingHistory} />
-        </div>
+      {/* Top Section: Streak Leaders & User Stats */}
+      <div className="space-y-8">
+          {/* Active Streaks */}
+          <StreakLeaders stats={playerStats} />
+          
+          <div className="grid lg:grid-cols-2 gap-8">
+             <div className="space-y-6">
+                 {/* User Stats or Sign In */}
+                 {userEmail && userName ? (
+                     <UserStatsCard stats={userStats} username={userName} />
+                 ) : (
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6">
+                        <h2 className="mb-4 text-xl font-bold">Sign In to Track Stats</h2>
+                        <AuthForm
+                        onSignIn={handleSignIn}
+                        onSignUp={handleSignUp}
+                        loading={authLoading}
+                        />
+                    </div>
+                 )}
+
+                 {/* Pending Games Alert */}
+                 <PendingGames userId={userId} userName={userName} onUpdate={() => setRefreshKey(k => k + 1)} />
+             </div>
+
+             {/* Recent Games Feed */}
+             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6 h-fit">
+                <RecentGames games={verifiedGames} loading={loading} ratingHistory={ratingHistory} />
+             </div>
+          </div>
       </div>
     </main>
   );

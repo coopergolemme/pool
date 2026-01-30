@@ -7,6 +7,8 @@ export type Game = {
   winner: string;
   score: string;
   createdAt: string;
+  status: "pending" | "verified";
+  submittedBy?: string;
 };
 
 export const GLICKO_SCALE = 173.7178;
@@ -92,7 +94,10 @@ export const computeRatings = (games: Game[]) => {
     return players.get(name)!;
   };
 
-  const sorted = [...games].sort((a, b) => {
+  // Only consider verified games
+  const verifiedGames = games.filter(g => g.status === "verified");
+
+  const sorted = [...verifiedGames].sort((a, b) => {
     if (a.date === b.date) {
       return a.createdAt < b.createdAt ? -1 : 1;
     }
@@ -202,8 +207,11 @@ export const computeRatingHistory = (games: Game[]): RatingHistory => {
     return players.get(name)!;
   };
 
+  // Only consider verified games
+  const verifiedGames = games.filter(g => g.status === "verified");
+
   // Sort games oldest to newest for processing
-  const sorted = [...games].sort((a, b) => {
+  const sorted = [...verifiedGames].sort((a, b) => {
     if (a.date === b.date) {
       return a.createdAt < b.createdAt ? -1 : 1;
     }

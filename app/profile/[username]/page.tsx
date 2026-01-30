@@ -111,7 +111,8 @@ export default function ProfilePage() {
   const [activeFilter, setActiveFilter] = useState<"all" | "h2h">("all");
 
   const playerGames = useMemo(() => {
-      const allPlayerGames = games.filter(g => g.players.includes(username));
+      const verifiedGames = games.filter(g => g.status === "verified");
+      const allPlayerGames = verifiedGames.filter(g => g.players.includes(username));
       
       if (activeFilter === "h2h" && currentUserProfile && currentUserProfile.username !== username) {
           return allPlayerGames.filter(g => g.players.includes(currentUserProfile.username));
@@ -181,7 +182,7 @@ export default function ProfilePage() {
                 gameIndex: gameIndex++,
                 opponent,
                 result: isWinner ? "W" : "L" as "W" | "L", // Explicit cast for TS
-                userRating: currentCtxUserRating, // Snapshot of your rating at that time
+                userRating: (currentUserProfile?.username === username) ? undefined : currentCtxUserRating, // Snapshot of your rating at that time
             });
         }
     }
@@ -227,7 +228,9 @@ export default function ProfilePage() {
              </div>
               <div 
                  onClick={() => setActiveFilter("all")}
-                 className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "all" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"}`}
+                 className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${
+                    activeFilter === "all" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"
+                 } ${!vsRecord ? "col-span-2 sm:col-span-1" : ""}`}
               >
                  <p className="text-xs uppercase tracking-widest text-white/50">Games</p>
                  <p className="text-2xl font-bold text-white">{stats.gamesPlayed}</p>

@@ -134,6 +134,8 @@ export default function AddGamePage() {
       user_id: userId,
       opponent_id: opponent.id,
       opponent_email: opponent.email,
+      status: "pending",
+      submitted_by: userId,
     };
 
     const { error: insertError } = await supabase.from("games").insert(payload);
@@ -141,7 +143,7 @@ export default function AddGamePage() {
     if (insertError) {
       setError(insertError.message);
     } else {
-      setSuccess("Game recorded!");
+      setSuccess("Game submitted! Waiting for opponent verification.");
       setForm(prev => ({ ...prev, winner: "", score: "" }));
        // Update ratings in background
        updateRatings();

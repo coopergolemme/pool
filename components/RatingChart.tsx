@@ -87,7 +87,7 @@ export function RatingChart({ data }: RatingChartProps) {
   const allRatings = chartData.flatMap(d => d.userRating !== undefined ? [d.rating, d.userRating] : [d.rating]);
   const minRating = Math.min(...allRatings);
   const maxRating = Math.max(...allRatings);
-  const padding = (maxRating - minRating) * 0.1 || 50;
+  const padding = (maxRating - minRating) * 0.2 || 50; // Increased padding to 20% to avoid clipping
 
   return (
     <div className="h-64 w-full rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur">
@@ -96,7 +96,7 @@ export function RatingChart({ data }: RatingChartProps) {
       </h3>
       <div className="h-[calc(100%-2rem)] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
+          <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
             <XAxis 
                 dataKey="gameIndex" 
