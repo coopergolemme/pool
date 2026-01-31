@@ -11,6 +11,7 @@ import { PendingGames } from "../components/PendingGames";
 import { StreakLeaders } from "../components/StreakLeaders";
 import { UserStatsCard } from "../components/UserStatsCard";
 import { Skeleton } from "../components/ui/Skeleton";
+import { getConfig } from "../lib/config";
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
@@ -22,12 +23,15 @@ export default function Home() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [requireVerification, setRequireVerification] = useState(true);
 
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
       return;
     }
+
+    getConfig("require_verification", true).then(setRequireVerification);
 
     const fetchData = async () => {
       setLoading(true);
@@ -168,7 +172,12 @@ export default function Home() {
                  )}
 
                  {/* Pending Games Alert */}
-                 <PendingGames userId={userId} userName={userName} onUpdate={() => setRefreshKey(k => k + 1)} />
+                 <PendingGames 
+                    userId={userId} 
+                    userName={userName} 
+                    onUpdate={() => setRefreshKey(k => k + 1)} 
+                    enabled={requireVerification}
+                 />
              </div>
 
              {/* Recent Games Feed */}

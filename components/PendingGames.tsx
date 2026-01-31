@@ -12,14 +12,15 @@ interface PendingGamesProps {
   userId: string | null;
   userName: string | null;
   onUpdate: () => void;
+  enabled?: boolean;
 }
 
-export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) {
+export function PendingGames({ userId, userName, onUpdate, enabled = true }: PendingGamesProps) {
   const [pendingGames, setPendingGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!userId || !userName) {
+    if (!enabled || !userId || !userName) {
         setPendingGames([]);
         return;
     }
@@ -88,7 +89,7 @@ export function PendingGames({ userId, userName, onUpdate }: PendingGamesProps) 
       }
   };
 
-  if (pendingGames.length === 0) return null;
+  if (!enabled || pendingGames.length === 0) return null;
 
   return (
     <div className="mb-6 space-y-4">

@@ -7,6 +7,7 @@ import { GameForm } from "../../components/GameForm";
 import { computeRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../../lib/glicko";
 import { mapGame } from "../../lib/types";
 import { AuthForm } from "../../components/AuthForm";
+import { getConfig } from "../../lib/config";
 
 export default function AddGamePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -16,6 +17,7 @@ export default function AddGamePage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [requireVerification, setRequireVerification] = useState(true);
 
   const [form, setForm] = useState({
     date: "",
@@ -32,6 +34,8 @@ export default function AddGamePage() {
 
   useEffect(() => {
     if (!supabase) return;
+
+    getConfig("require_verification", true).then(setRequireVerification);
 
     supabase.auth.getSession().then(({ data }) => {
       setUserEmail(data.session?.user.email ?? null);
@@ -136,7 +140,7 @@ export default function AddGamePage() {
       user_id: userId,
       opponent_id: opponent.id,
       opponent_email: opponent.email,
-      status: "pending",
+      status: requireVerification ? "pending" : "verified",
       submitted_by: userId,
       balls_remaining: form.ballsRemaining ? parseInt(form.ballsRemaining) : null,
     };
@@ -146,8 +150,11 @@ export default function AddGamePage() {
     if (insertError) {
       setError(insertError.message);
     } else {
-      setSuccess("Game submitted! Waiting for opponent verification.");
-      toast.success("Game submitted successfully!");
+      const msg = requireVerification 
+        ? "Game submitted! Waiting for opponent verification." 
+        : "Game added successfully!";
+      setSuccess(msg);
+      toast.success(msg);
       setForm(prev => ({ ...prev, winner: "", score: "" }));
        // Update ratings in background
        updateRatings();
