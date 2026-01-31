@@ -104,7 +104,7 @@ export function PWAInstall() {
                 <div className="mt-8 space-y-6 text-left">
                   <div className="flex items-center gap-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">1</div>
-                    <p className="text-sm text-white/80">Tap the <span className="mx-1 inline-flex items-center justify-center rounded bg-blue-500 p-1 text-[10px]">⬈</span> share icon below.</p>
+                    <p className="text-sm text-white/80">Tap the **Share** icon (the square with an arrow) in your browser's toolbar.</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">2</div>
