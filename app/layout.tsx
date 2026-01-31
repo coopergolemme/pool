@@ -46,20 +46,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased min-h-screen min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col`}>
-        <Navigation />
-        <div className="pb-32 pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:pt-20 sm:pb-0">
-          {children}
+      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
+        <div className="flex flex-col h-dvh w-full overflow-hidden">
+          {/* Main Content Area - Scrollable */}
+          <main className="flex-1 overflow-y-auto overflow-x-hidden pt-[calc(env(safe-area-inset-top)+1rem)] sm:pt-20">
+            <div className="mx-auto w-full max-w-6xl pb-32 sm:pb-8">
+              {children}
+            </div>
+          </main>
+
+          {/* Persistent Navigation */}
+          <Navigation />
+          
+          <Toaster 
+            position="top-center" 
+            theme="dark" 
+            toastOptions={{
+              style: {
+                marginTop: 'calc(env(safe-area-inset-top) + 0.5rem)',
+              },
+            }}
+          />
         </div>
-        <Toaster 
-          position="top-center" 
-          theme="dark" 
-          toastOptions={{
-            style: {
-              marginTop: 'calc(env(safe-area-inset-top) + 0.5rem)',
-            },
-          }}
-        />
       </body>
     </html>
   );
