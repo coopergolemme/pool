@@ -114,7 +114,7 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
                 onClick={() => updateForm({ winner: teamA })}
                 disabled={!isSignedIn || saving || !teamAReady}
               >
-                {form.format === "8-ball-2v2" ? "Team A" : "Player 1"} Wins
+                {teamA.trim() || (form.format === "8-ball-2v2" ? "Team A" : "Player 1")} Wins
               </Button>
               <Button
                 type="button"
@@ -123,7 +123,7 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
                 onClick={() => updateForm({ winner: teamB })}
                 disabled={!isSignedIn || saving || !teamBReady}
               >
-                {form.format === "8-ball-2v2" ? "Team B" : "Player 2"} Wins
+                {teamB.trim() || (form.format === "8-ball-2v2" ? "Team B" : "Player 2")} Wins
               </Button>
             </div>
           </div>

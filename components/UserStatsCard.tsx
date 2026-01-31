@@ -20,12 +20,12 @@ export function UserStatsCard({ stats, username }: UserStatsCardProps) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white mb-2">{username}</h2>
+        <h2 className="text-xl font-bold text-white mb-2">My Stats</h2>
         <Link 
             href={`/profile/${username}`}
             className="text-xs uppercase tracking-widest text-white/50 hover:text-white transition-colors"
         >
-            View Profile →
+            View My Profile →
         </Link>
       </div>
 

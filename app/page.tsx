@@ -11,7 +11,9 @@ import { PendingGames } from "../components/PendingGames";
 import { StreakLeaders } from "../components/StreakLeaders";
 import { UserStatsCard } from "../components/UserStatsCard";
 import { Skeleton } from "../components/ui/Skeleton";
+import { PushManager } from "../components/PushManager";
 import { getConfig } from "../lib/config";
+import { Button } from "@/components/ui/Button";
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
@@ -102,6 +104,7 @@ export default function Home() {
       email: authForm.email,
       password: authForm.password,
     });
+    refreshPage();
     setAuthLoading(false);
   };
 
@@ -145,8 +148,11 @@ export default function Home() {
 
       {/* Top Section: Streak Leaders & User Stats */}
       <div className="space-y-8">
+          <PushManager userId={userId} />
           {/* Active Streaks */}
-          <StreakLeaders stats={playerStats} loading={loading} />
+          {userId && (
+            <StreakLeaders stats={playerStats} loading={loading} />
+          ) }
           
           <div className="grid lg:grid-cols-2 gap-8">
              <div className="space-y-6">
@@ -161,14 +167,11 @@ export default function Home() {
                  ) : userEmail && userName ? (
                      <UserStatsCard stats={userStats} username={userName} />
                  ) : (
-                    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6">
-                        <h2 className="mb-4 text-xl font-bold">Sign In to Track Stats</h2>
                         <AuthForm
                         onSignIn={handleSignIn}
                         onSignUp={handleSignUp}
                         loading={authLoading}
                         />
-                    </div>
                  )}
 
                  {/* Pending Games Alert */}
@@ -181,11 +184,32 @@ export default function Home() {
              </div>
 
              {/* Recent Games Feed */}
-             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6 h-fit">
-                <RecentGames games={verifiedGames} loading={loading} ratingHistory={ratingHistory} />
-             </div>
-          </div>
+          {
+            userId &&
+             
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6 h-fit">
+              <RecentGames games={verifiedGames} loading={loading} ratingHistory={ratingHistory} />
+            </div>
+          }
+
+          {/* Signout button */}
+          {userEmail && userName && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSignOut}
+              disabled={authLoading}
+            >
+              Sign Out
+            </Button>
+          )}
+        </div>
+        
       </div>
     </main>
   );
 }
+function refreshPage() {
+  window.location.reload();
+}
+

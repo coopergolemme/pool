@@ -7,7 +7,7 @@ interface HeaderProps {
   authLoading: boolean;
 }
 
-export function Header({ userEmail, userName, onSignOut, authLoading }: HeaderProps) {
+export function Header({ userName, onSignOut, authLoading }: HeaderProps) {
   return (
     <header className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-6">
@@ -23,25 +23,6 @@ export function Header({ userEmail, userName, onSignOut, authLoading }: HeaderPr
               Pool Game Tracker
             </h1>
           </div>
-        </div>
-      <p className="text-sm text-white/60">
-        {userEmail ? `Signed in as ${userName || userEmail}` : "Use email and password to sign in or create an account."}
-      </p>
-        <div className="flex flex-wrap items-center gap-3">
-          {userEmail ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onSignOut}
-              disabled={authLoading}
-            >
-              Sign Out
-            </Button>
-          ) : (
-            <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-white/70 sm:text-xs sm:tracking-[0.3em]">
-              Sign In
-            </span>
-          )}
         </div>
       </div>
 

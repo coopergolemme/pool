@@ -156,6 +156,21 @@ export default function AddGamePage() {
       setSuccess(msg);
       toast.success(msg);
       setForm(prev => ({ ...prev, winner: "", score: "" }));
+
+      // Trigger Push Notification to opponent
+      if (requireVerification && opponent.id) {
+        fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: opponent.id,
+            title: "New Game to Verify! 🎱",
+            body: `${form.playerA} submitted a game against you.`,
+            url: "/"
+          })
+        }).catch(err => console.error("Failed to send push notification:", err));
+      }
+
        // Update ratings in background
        updateRatings();
     }
