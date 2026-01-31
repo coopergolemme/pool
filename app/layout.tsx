@@ -46,7 +46,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased min-h-screen bg-[var(--background)] text-[var(--foreground)]`}>
+      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased min-h-screen min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col`}>
         <Navigation />
         <div className="pb-32 pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:pt-20 sm:pb-0">
           {children}
