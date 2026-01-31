@@ -12,6 +12,7 @@ import { StreakLeaders } from "../components/StreakLeaders";
 import { UserStatsCard } from "../components/UserStatsCard";
 import { Skeleton } from "../components/ui/Skeleton";
 import { PushManager } from "../components/PushManager";
+import { PWAInstall } from "../components/PWAInstall";
 import { getConfig } from "../lib/config";
 import { Button } from "@/components/ui/Button";
 
@@ -148,6 +149,7 @@ export default function Home() {
 
       {/* Top Section: Streak Leaders & User Stats */}
       <div className="space-y-8">
+          <PWAInstall />
           <PushManager userId={userId} />
           {/* Active Streaks */}
           {userId && (
