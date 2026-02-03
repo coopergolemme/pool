@@ -209,7 +209,12 @@ export default function AddGamePage() {
       </div>
 
       {!userId ? (
-        <AuthForm onSignIn={handleSignIn} onSignUp={handleSignUp} loading={authLoading} />
+        <AuthForm
+          onSignIn={handleSignIn}
+          onSignUp={handleSignUp}
+          loading={authLoading}
+          error={error}
+        />
       ) : (
         <>
           {error && <div className="mb-4 rounded bg-red-500/10 p-4 text-red-200 border border-red-500/20">{error}</div>}

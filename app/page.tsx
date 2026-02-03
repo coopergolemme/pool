@@ -27,6 +27,7 @@ export default function Home() {
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -98,23 +99,31 @@ export default function Home() {
   const handleSignIn = async (authForm: AuthFormData) => {
     if (!supabase) return;
     setAuthLoading(true);
-    await supabase.auth.signInWithPassword({
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({
       email: authForm.email,
       password: authForm.password || "",
     });
-    refreshPage();
+    if (error) {
+      setError(error.message);
+    } else {
+      refreshPage();
+    }
     setAuthLoading(false);
   };
 
   const handleSignUp = async (authForm: AuthFormData) => {
     if (!supabase) return;
     setAuthLoading(true);
+    setError(null);
     const { data, error } = await supabase.auth.signUp({
       email: authForm.email,
       password: authForm.password || "",
     });
 
-    if (!error && data.user?.id && authForm.username) {
+    if (error) {
+      setError(error.message);
+    } else if (data.user?.id && authForm.username) {
       await supabase
         .from("profiles")
         .upsert({ id: data.user.id, email: authForm.email, username: authForm.username }, { onConflict: "id" });
@@ -176,6 +185,7 @@ export default function Home() {
                 onSignIn={handleSignIn}
                 onSignUp={handleSignUp}
                 loading={authLoading}
+                error={error}
               />
             )}
 

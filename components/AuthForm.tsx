@@ -13,9 +13,10 @@ interface AuthFormProps {
   onSignIn: (data: AuthFormData) => void;
   onSignUp: (data: AuthFormData) => void;
   loading: boolean;
+  error?: string | null;
 }
 
-export function AuthForm({ onSignIn, onSignUp, loading }: AuthFormProps) {
+export function AuthForm({ onSignIn, onSignUp, loading, error }: AuthFormProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", username: "" });
 
@@ -38,6 +39,13 @@ export function AuthForm({ onSignIn, onSignUp, loading }: AuthFormProps) {
           ? "Enter your details to create a new account."
           : "Use your email and password to continue."}
       </p>
+
+      {error && (
+        <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+          <p className="text-sm text-red-400 text-center">{error}</p>
+        </div>
+      )}
+
       <form
         className="mt-4 space-y-4"
         onSubmit={handleSubmit}
