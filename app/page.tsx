@@ -24,7 +24,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [userName, setUserName] = useState<string | null>(null);
+
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
 
@@ -38,7 +38,7 @@ export default function Home() {
 
     const fetchData = async () => {
       setLoading(true);
-      
+
       if (!supabase) return;
 
       const { data: gamesData } = await supabase
@@ -46,7 +46,7 @@ export default function Home() {
         .select("*")
         .order("date", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(20);
+        .order("created_at", { ascending: false });
 
       if (!supabase) return;
 
@@ -56,7 +56,7 @@ export default function Home() {
 
       if (gamesData) setGames(gamesData.map(mapGame));
       if (profilesData) setProfiles(profilesData);
-      
+
       setLoading(false);
     };
 
@@ -68,17 +68,17 @@ export default function Home() {
       setIsCheckingSession(false);
     });
 
-      if (!supabase) return;
-      
-      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (!supabase) return;
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user.email ?? null);
       setUserId(session?.user.id ?? null);
       if (session?.user?.id && session.user.email) {
-          if (supabase) {
-           void supabase
-           .from("profiles")
-           .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id" });
-          }
+        if (supabase) {
+          void supabase
+            .from("profiles")
+            .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id" });
+        }
       }
     });
 
@@ -87,15 +87,12 @@ export default function Home() {
     };
   }, [refreshKey]);
 
-  useEffect(() => {
+  const userName = useMemo(() => {
     if (userId && profiles.length > 0) {
       const profile = profiles.find((p) => p.id === userId);
-      if (profile) {
-        setUserName(profile.username);
-      }
-    } else {
-        setUserName(null);
+      return profile ? profile.username : null;
     }
+    return null;
   }, [userId, profiles]);
 
   const handleSignIn = async (authForm: any) => {
@@ -134,8 +131,8 @@ export default function Home() {
 
   // Find current user's stats
   const userStats = useMemo(() => {
-      if (!userName || !playerStats) return null;
-      return playerStats.get(userName) ?? null;
+    if (!userName || !playerStats) return null;
+    return playerStats.get(userName) ?? null;
   }, [userName, playerStats]);
 
   return (
@@ -149,48 +146,48 @@ export default function Home() {
 
       {/* Top Section: Streak Leaders & User Stats */}
       <div className="space-y-8">
-          <PWAInstall />
-          <PushManager userId={userId} />
-          {/* Active Streaks */}
-          {userId && (
-            <StreakLeaders stats={playerStats} loading={loading} />
-          ) }
-          
-          <div className="grid lg:grid-cols-2 gap-8">
-             <div className="space-y-6">
-                 {/* User Stats or Sign In */}
-                 {/* User Stats or Sign In */}
-                 {isCheckingSession || (userId && !userName) ? (
-                    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
-                        <Skeleton className="h-8 w-1/2 mb-4" />
-                        <Skeleton className="h-10 w-full mb-2" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
-                 ) : userEmail && userName ? (
-                     <UserStatsCard stats={userStats} username={userName} />
-                 ) : (
-                        <AuthForm
-                        onSignIn={handleSignIn}
-                        onSignUp={handleSignUp}
-                        loading={authLoading}
-                        />
-                 )}
+        <PWAInstall />
+        <PushManager userId={userId} />
+        {/* Active Streaks */}
+        {userId && (
+          <StreakLeaders stats={playerStats} loading={loading} />
+        )}
 
-                 {/* Pending Games Alert */}
-                 <PendingGames 
-                    userId={userId} 
-                    userName={userName} 
-                    onUpdate={() => setRefreshKey(k => k + 1)} 
-                    enabled={requireVerification}
-                 />
-             </div>
+        <div className="grid lg:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            {/* User Stats or Sign In */}
+            {/* User Stats or Sign In */}
+            {isCheckingSession || (userId && !userName) ? (
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
+                <Skeleton className="h-8 w-1/2 mb-4" />
+                <Skeleton className="h-10 w-full mb-2" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : userEmail && userName ? (
+              <UserStatsCard stats={userStats} username={userName} />
+            ) : (
+              <AuthForm
+                onSignIn={handleSignIn}
+                onSignUp={handleSignUp}
+                loading={authLoading}
+              />
+            )}
 
-             {/* Recent Games Feed */}
+            {/* Pending Games Alert */}
+            <PendingGames
+              userId={userId}
+              userName={userName}
+              onUpdate={() => setRefreshKey(k => k + 1)}
+              enabled={requireVerification}
+            />
+          </div>
+
+          {/* Recent Games Feed */}
           {
             userId &&
-             
+
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6 h-fit">
-              <RecentGames games={verifiedGames} loading={loading} ratingHistory={ratingHistory} />
+              <RecentGames games={verifiedGames.slice(0, 20)} loading={loading} ratingHistory={ratingHistory} />
             </div>
           }
 
@@ -206,7 +203,7 @@ export default function Home() {
             </Button>
           )}
         </div>
-        
+
       </div>
     </main>
   );
