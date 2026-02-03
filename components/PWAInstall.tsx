@@ -14,10 +14,10 @@ export function PWAInstall() {
 
   useEffect(() => {
     // Check if already installed
-    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
-      || (navigator as any).standalone 
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator as any).standalone
       || document.referrer.includes('android-app://');
-    
+
     setIsStandalone(isStandaloneMode);
 
     // Detect iOS
@@ -60,8 +60,8 @@ export function PWAInstall() {
   return (
     <>
       <div className="mb-6">
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           className="w-full bg-felt-bright border border-white/10 text-white shadow-lg py-4 group"
           onClick={handleInstallClick}
         >
@@ -75,16 +75,16 @@ export function PWAInstall() {
         {showIOSGuide && (
           <div className="fixed inset-0 z-[200] flex items-end justify-center p-4 sm:items-center">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowIOSGuide(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            
+
             {/* Guide Card */}
-            <motion.div 
+            <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -100,7 +100,7 @@ export function PWAInstall() {
                 <p className="mt-2 text-sm text-white/60">
                   Install this app on your iPhone for the best experience.
                 </p>
-                
+
                 <div className="mt-8 space-y-6 text-left">
                   <div className="flex items-center gap-4">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">1</div>
@@ -112,8 +112,8 @@ export function PWAInstall() {
                   </div>
                 </div>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="mt-8 w-full py-4"
                   onClick={() => setShowIOSGuide(false)}
                 >

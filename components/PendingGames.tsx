@@ -21,8 +21,8 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
 
   useEffect(() => {
     if (!enabled || !userId || !userName) {
-        setPendingGames([]);
-        return;
+      setPendingGames([]);
+      return;
     }
 
     const fetchPending = async () => {
@@ -43,9 +43,9 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
         // 1. I am one of the players
         // 2. I did NOT submit it (someone else did)
         const relevant = games.filter(g => {
-            const amInGame = g.players.includes(userName);
-            const isMySubmission = g.submittedBy === userId;
-            return amInGame && !isMySubmission;
+          const amInGame = g.players.includes(userName);
+          const isMySubmission = g.submittedBy === userId;
+          return amInGame && !isMySubmission;
         });
         setPendingGames(relevant);
       }
@@ -56,37 +56,28 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
   }, [userId, userName]);
 
   const handleAction = async (gameId: string, action: "accept" | "reject") => {
-      if (!supabase) return;
+    try {
+      const res = await fetch("/api/games/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameId, action, userId })
+      });
 
-      if (action === "accept") {
-          const { error } = await supabase
-            .from("games")
-            .update({ status: "verified" })
-            .eq("id", gameId);
-          
-          if (!error) {
-              toast.success("Game verified!");
-              onUpdate(); // Refresh parent data
-              setPendingGames(prev => prev.filter(g => g.id !== gameId));
-          } else {
-              console.error("Error verifying game:", error);
-              toast.error("Failed to verify: " + error.message);
-          }
-      } else {
-          const { error } = await supabase
-            .from("games")
-            .delete()
-            .eq("id", gameId);
+      const data = await res.json();
 
-          if (!error) {
-              toast.success("Game rejected");
-              onUpdate();
-              setPendingGames(prev => prev.filter(g => g.id !== gameId));
-          } else {
-              console.error("Error rejecting game:", error);
-              toast.error("Failed to reject: " + error.message);
-          }
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process request");
       }
+
+      toast.success(action === "accept" ? "Game verified!" : "Game rejected");
+      onUpdate();
+      setPendingGames(prev => prev.filter(g => g.id !== gameId));
+
+    } catch (error: unknown) {
+      console.error("Error processing game:", error);
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      toast.error("Failed: " + msg);
+    }
   };
 
   if (!enabled || pendingGames.length === 0) return null;
@@ -99,51 +90,51 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
         </h2>
         <div className="space-y-3">
           <AnimatePresence>
-          {pendingGames.map((game) => (
-            <motion.div 
-               key={game.id} 
-               layout
-               initial={{ opacity: 0, height: 0 }}
-               animate={{ opacity: 1, height: "auto" }}
-               exit={{ opacity: 0, height: 0, scale: 0.95 }}
-               transition={{ duration: 0.2 }}
-               className="flex flex-col gap-4 rounded-2xl border border-white/5 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between overflow-hidden"
-            >
-              <div>
-                <p className="text-sm font-medium text-white/90">
-                  vs {game.players.find(p => p !== userName) || "Opponent"}
-                </p>
-                <div className="mt-1 flex gap-2 text-xs text-white/50">
-                   <span>{game.format}</span>
-                   <span>•</span>
-                   <span>{new Date(game.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="mt-2 text-sm">
+            {pendingGames.map((game) => (
+              <motion.div
+                key={game.id}
+                layout
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col gap-4 rounded-2xl border border-white/5 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between overflow-hidden"
+              >
+                <div>
+                  <p className="text-sm font-medium text-white/90">
+                    vs {game.players.find(p => p !== userName) || "Opponent"}
+                  </p>
+                  <div className="mt-1 flex gap-2 text-xs text-white/50">
+                    <span>{game.format}</span>
+                    <span>•</span>
+                    <span>{new Date(game.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="mt-2 text-sm">
                     Result: <span className="font-bold text-white">{game.winner === userName ? "You Won" : "You Lost"}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    haptic.medium();
-                    handleAction(game.id, "reject");
-                  }}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/20 transition-colors"
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={() => {
-                    haptic.success();
-                    handleAction(game.id, "accept");
-                  }}
-                  className="rounded-xl bg-green-500 text-black px-6 py-2 text-sm font-bold hover:bg-green-400 transition-colors"
-                >
-                  Verify
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      haptic.medium();
+                      handleAction(game.id, "reject");
+                    }}
+                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/20 transition-colors"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => {
+                      haptic.success();
+                      handleAction(game.id, "accept");
+                    }}
+                    className="rounded-xl bg-green-500 text-black px-6 py-2 text-sm font-bold hover:bg-green-400 transition-colors"
+                  >
+                    Verify
+                  </button>
+                </div>
+              </motion.div>
+            ))}
           </AnimatePresence>
         </div>
       </div>
