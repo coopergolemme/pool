@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mapGame, DbGame } from "@/lib/types";
-import { computeRatings } from "@/lib/glicko";
+import { DbGame } from "@/lib/types";
+
 
 export async function POST(request: Request) {
   try {
@@ -53,29 +53,94 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-const { data: allGames } = await supabase.from("games").select("*");
-    const { data: allProfiles } = await supabase.from("profiles").select("id, username");
+    // 3. Incremental Rating Update
+    const is2v2 = game.format === "8-ball-2v2";
+    if (game.player_a && game.player_b && game.winner) {
+      const { parseTeam, calculateNewRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL } = await import("@/lib/glicko");
 
-    if (allGames && allProfiles) {
-        const games = allGames.map((g) => mapGame(g as DbGame));
-        const ratings = computeRatings(games);
+      const teamAPlayers = parseTeam(game.player_a, is2v2);
+      const teamBPlayers = parseTeam(game.player_b, is2v2);
+      const allPlayerNames = [...teamAPlayers, ...teamBPlayers];
 
-        const updates = Array.from(ratings.entries()).map(([username, stats]) => {
-            const profile = allProfiles.find((p: { username: string; id: string }) => p.username === username);
-            if (!profile) return null;
-            return {
-                id: profile.id,
-                rating: stats.rating,
-                rd: stats.rd,
-                vol: stats.vol,
-                streak: stats.streak
-            };
-        }).filter(Boolean);
+      // Fetch profiles for these players
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("username", allPlayerNames);
+
+      if (!profileError && profiles) {
+        const profileMap = new Map(profiles.map(p => [p.username, {
+          rating: Number(p.rating),
+          rd: Number(p.rd),
+          vol: Number(p.vol),
+          wins: p.wins || 0,
+          losses: p.losses || 0,
+          streak: p.streak || 0
+        }]));
+
+        const getStats = (name: string) => profileMap.get(name) || {
+          rating: DEFAULT_RATING, rd: DEFAULT_RD, vol: DEFAULT_VOL, wins: 0, losses: 0, streak: 0
+        };
+
+        const teamARating = teamAPlayers.reduce((sum, name) => sum + getStats(name).rating, 0) / teamAPlayers.length;
+        const teamBRD = teamBPlayers.reduce((sum, name) => sum + getStats(name).rd, 0) / teamBPlayers.length;
+        
+        const teamBRating = teamBPlayers.reduce((sum, name) => sum + getStats(name).rating, 0) / teamBPlayers.length;
+        const teamARD = teamAPlayers.reduce((sum, name) => sum + getStats(name).rd, 0) / teamAPlayers.length;
+
+        const teamAIsWinner = game.winner === game.player_a;
+        const scoreA = teamAIsWinner ? 1 : 0;
+        const scoreB = teamAIsWinner ? 0 : 1;
+
+        type ProfileUpdate = {
+          id: string;
+          rating: number;
+          rd: number;
+          vol: number;
+          wins: number;
+          losses: number;
+          streak: number;
+        };
+
+        const updates: ProfileUpdate[] = [];
+
+        teamAPlayers.forEach(name => {
+          const profile = profiles.find(p => p.username === name);
+          if (profile) {
+            const newStats = calculateNewRatings(getStats(name), teamBRating, teamBRD, scoreA);
+            updates.push({
+              id: profile.id,
+              rating: newStats.rating,
+              rd: newStats.rd,
+              vol: newStats.vol,
+              wins: newStats.wins,
+              losses: newStats.losses,
+              streak: newStats.streak
+            });
+          }
+        });
+
+        teamBPlayers.forEach(name => {
+          const profile = profiles.find(p => p.username === name);
+          if (profile) {
+            const newStats = calculateNewRatings(getStats(name), teamARating, teamARD, scoreB);
+            updates.push({
+              id: profile.id,
+              rating: newStats.rating,
+              rd: newStats.rd,
+              vol: newStats.vol,
+              wins: newStats.wins,
+              losses: newStats.losses,
+              streak: newStats.streak
+            });
+          }
+        });
 
         if (updates.length > 0) {
-            const { error: upsertError } = await supabase.from("profiles").upsert(updates);
-            if (upsertError) console.error("Rating update failed", upsertError);
+          const { error: upsertError } = await supabase.from("profiles").upsert(updates);
+          if (upsertError) console.error("Rating update failed", upsertError);
         }
+      }
     }
 
     return NextResponse.json({ success: true });

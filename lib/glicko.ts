@@ -73,9 +73,46 @@ const updateSigma = (phi: number, sigma: number, delta: number, v: number) => {
   return Math.exp(A / 2);
 };
 
-const parseTeam = (name: string, is2v2: boolean) => {
+export const parseTeam = (name: string, is2v2: boolean) => {
   if (!is2v2) return [name];
   return name.split(" & ").map((player) => player.trim()).filter(Boolean);
+};
+
+export const calculateNewRatings = (
+  player: GlickoPlayer,
+  oppRating: number,
+  oppRd: number,
+  score: number
+): GlickoPlayer => {
+  const newPlayer = { ...player };
+  const mu = (newPlayer.rating - DEFAULT_RATING) / GLICKO_SCALE;
+  const phi = newPlayer.rd / GLICKO_SCALE;
+  const muJ = (oppRating - DEFAULT_RATING) / GLICKO_SCALE;
+  const phiJ = oppRd / GLICKO_SCALE;
+
+  const g = glickoG(phiJ);
+  const E = glickoE(mu, muJ, phiJ);
+  const v = 1 / (g * g * E * (1 - E));
+  const delta = v * g * (score - E);
+
+  const sigmaPrime = updateSigma(phi, newPlayer.vol, delta, v);
+  const phiStar = Math.sqrt(phi * phi + sigmaPrime * sigmaPrime);
+  const phiPrime = 1 / Math.sqrt(1 / (phiStar * phiStar) + 1 / v);
+  const muPrime = mu + phiPrime * phiPrime * g * (score - E);
+
+  newPlayer.rating = muPrime * GLICKO_SCALE + DEFAULT_RATING;
+  newPlayer.rd = phiPrime * GLICKO_SCALE;
+  newPlayer.vol = sigmaPrime;
+
+  if (score === 1) {
+    newPlayer.wins += 1;
+    newPlayer.streak = newPlayer.streak > 0 ? newPlayer.streak + 1 : 1;
+  } else {
+    newPlayer.losses += 1;
+    newPlayer.streak = newPlayer.streak < 0 ? newPlayer.streak - 1 : -1;
+  }
+
+  return newPlayer;
 };
 
 export const computeRatings = (games: Game[]) => {
@@ -145,31 +182,8 @@ export const computeRatings = (games: Game[]) => {
 
     const updatePlayer = (playerName: string, oppRating: number, oppRd: number, score: number) => {
       const player = ensurePlayer(playerName);
-      const mu = (player.rating - DEFAULT_RATING) / GLICKO_SCALE;
-      const phi = player.rd / GLICKO_SCALE;
-      const muJ = (oppRating - DEFAULT_RATING) / GLICKO_SCALE;
-      const phiJ = oppRd / GLICKO_SCALE;
-
-      const g = glickoG(phiJ);
-      const E = glickoE(mu, muJ, phiJ);
-      const v = 1 / (g * g * E * (1 - E));
-      const delta = v * g * (score - E);
-
-      const sigmaPrime = updateSigma(phi, player.vol, delta, v);
-      const phiStar = Math.sqrt(phi * phi + sigmaPrime * sigmaPrime);
-      const phiPrime = 1 / Math.sqrt(1 / (phiStar * phiStar) + 1 / v);
-      const muPrime = mu + phiPrime * phiPrime * g * (score - E);
-
-      player.rating = muPrime * GLICKO_SCALE + DEFAULT_RATING;
-      player.rd = phiPrime * GLICKO_SCALE;
-      player.vol = sigmaPrime;
-      if (score === 1) {
-        player.wins += 1;
-        player.streak = player.streak > 0 ? player.streak + 1 : 1;
-      } else {
-        player.losses += 1;
-        player.streak = player.streak < 0 ? player.streak - 1 : -1;
-      }
+      const updated = calculateNewRatings(player, oppRating, oppRd, score);
+      players.set(playerName, updated);
     };
 
     teamAPlayers.forEach((name) => updatePlayer(name, teamBRating, teamBRD, scoreA));
