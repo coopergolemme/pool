@@ -6,7 +6,7 @@ import { Header } from "../components/Header";
 import { RecentGames } from "../components/RecentGames";
 import { computeRatingHistory, computeRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../lib/glicko";
 import { mapGame } from "../lib/types";
-import { AuthForm } from "../components/AuthForm";
+import { AuthForm, type AuthFormData } from "../components/AuthForm";
 import { PendingGames } from "../components/PendingGames";
 import { StreakLeaders } from "../components/StreakLeaders";
 import { UserStatsCard } from "../components/UserStatsCard";
@@ -95,24 +95,30 @@ export default function Home() {
     return null;
   }, [userId, profiles]);
 
-  const handleSignIn = async (authForm: any) => {
+  const handleSignIn = async (authForm: AuthFormData) => {
     if (!supabase) return;
     setAuthLoading(true);
     await supabase.auth.signInWithPassword({
       email: authForm.email,
-      password: authForm.password,
+      password: authForm.password || "",
     });
     refreshPage();
     setAuthLoading(false);
   };
 
-  const handleSignUp = async (authForm: any) => {
+  const handleSignUp = async (authForm: AuthFormData) => {
     if (!supabase) return;
     setAuthLoading(true);
-    await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: authForm.email,
-      password: authForm.password,
+      password: authForm.password || "",
     });
+
+    if (!error && data.user?.id && authForm.username) {
+      await supabase
+        .from("profiles")
+        .upsert({ id: data.user.id, email: authForm.email, username: authForm.username }, { onConflict: "id" });
+    }
     setAuthLoading(false);
   };
 

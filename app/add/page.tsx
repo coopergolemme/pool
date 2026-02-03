@@ -4,19 +4,18 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase/client";
 import { GameForm } from "../../components/GameForm";
-import { computeRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../../lib/glicko";
+import { computeRatings, type Game } from "../../lib/glicko";
 import { mapGame } from "../../lib/types";
-import { AuthForm } from "../../components/AuthForm";
+import { AuthForm, type AuthFormData } from "../../components/AuthForm";
 import { getConfig } from "../../lib/config";
 
 export default function AddGamePage() {
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+
   const [userId, setUserId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [requireVerification, setRequireVerification] = useState(true);
 
   const [form, setForm] = useState({
@@ -38,18 +37,16 @@ export default function AddGamePage() {
     getConfig("require_verification", true).then(setRequireVerification);
 
     supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user.email ?? null);
       setUserId(data.session?.user.id ?? null);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
       setUserId(session?.user.id ?? null);
     });
 
     const loadProfiles = async () => {
       if (!supabase) return;
-      
+
       const { data } = await supabase
         .from("profiles")
         .select("id, username, email")
@@ -58,10 +55,10 @@ export default function AddGamePage() {
         setProfiles(data);
         // Auto-select signed-in user
         if (userId) {
-            const userProfile = data.find((p) => p.id === userId);
-            if (userProfile) {
-                setForm(prev => ({ ...prev, playerA: userProfile.username }));
-            }
+          const userProfile = data.find((p) => p.id === userId);
+          if (userProfile) {
+            setForm(prev => ({ ...prev, playerA: userProfile.username }));
+          }
         }
       }
     };
@@ -71,33 +68,33 @@ export default function AddGamePage() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [userId]); 
+  }, [userId]);
 
-  const handleSignIn = async (authForm: any) => {
+  const handleSignIn = async (authForm: AuthFormData) => {
     if (!supabase) return;
     setAuthLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: authForm.email,
-      password: authForm.password,
+      password: authForm.password || "",
     });
     if (error) setError(error.message);
     setAuthLoading(false);
   };
 
-  const handleSignUp = async (authForm: any) => {
+  const handleSignUp = async (authForm: AuthFormData) => {
     if (!supabase) return;
     if (!authForm.username) return setError("Username required");
-    
+
     setAuthLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: authForm.email,
-      password: authForm.password,
+      password: authForm.password || "",
     });
-    
+
     if (error) {
       setError(error.message);
     } else if (data.user?.id) {
-       await supabase.from("profiles").upsert(
+      await supabase.from("profiles").upsert(
         { id: data.user.id, email: authForm.email, username: authForm.username },
         { onConflict: "id" }
       );
@@ -111,14 +108,13 @@ export default function AddGamePage() {
 
     setSaving(true);
     setError(null);
-    setSuccess(null);
 
     // Basic Validation
     if (!form.playerA || !form.playerB || !form.winner) return;
-    
+
     const opponentName = form.playerB;
     const opponent = profiles.find(p => p.username === opponentName);
-    
+
     if (!opponent) {
       setError("Opponent not found");
       setSaving(false);
@@ -127,7 +123,7 @@ export default function AddGamePage() {
 
     const teamA = form.format === "8-ball-2v2" ? `${form.playerA} & ${form.playerC}` : form.playerA;
     const teamB = form.format === "8-ball-2v2" ? `${form.playerB} & ${form.playerD}` : form.playerB;
-    
+
     const payload = {
       date: form.date || new Date().toISOString().slice(0, 10),
       table_name: form.table,
@@ -150,10 +146,10 @@ export default function AddGamePage() {
     if (insertError) {
       setError(insertError.message);
     } else {
-      const msg = requireVerification 
-        ? "Game submitted! Waiting for opponent verification." 
+      const msg = requireVerification
+        ? "Game submitted! Waiting for opponent verification."
         : "Game added successfully!";
-      setSuccess(msg);
+
       toast.success(msg);
       setForm(prev => ({ ...prev, winner: "", score: "" }));
 
@@ -171,41 +167,41 @@ export default function AddGamePage() {
         }).catch(err => console.error("Failed to send push notification:", err));
       }
 
-       // Update ratings in background
-       updateRatings();
+      // Update ratings in background
+      updateRatings();
     }
     setSaving(false);
   };
 
   const updateRatings = async () => {
-     if (!supabase) return;
-     // Re-fetch all games to compute fresh ratings
+    if (!supabase) return;
+    // Re-fetch all games to compute fresh ratings
     const { data: allGames } = await supabase.from("games").select("*");
     if (allGames) {
-        const mapped = allGames.map(mapGame);
-        const ratings = computeRatings(mapped);
-        const updates = Array.from(ratings.entries()).map(([player, record]) => {
-            const profile = profiles.find((p) => p.username === player);
-            if (!profile) return null;
-            return {
-              id: profile.id,
-              rating: record.rating,
-              rd: record.rd,
-              vol: record.vol,
-              streak: record.streak,
-            };
-        }).filter(Boolean);
-        
-        if (updates.length > 0) {
-           const { error } = await supabase.from("profiles").upsert(updates);
-           if (error) console.error("Error updating ratings/streaks", error);
-        }
+      const mapped = allGames.map(mapGame);
+      const ratings = computeRatings(mapped);
+      const updates = Array.from(ratings.entries()).map(([player, record]) => {
+        const profile = profiles.find((p) => p.username === player);
+        if (!profile) return null;
+        return {
+          id: profile.id,
+          rating: record.rating,
+          rd: record.rd,
+          vol: record.vol,
+          streak: record.streak,
+        };
+      }).filter(Boolean);
+
+      if (updates.length > 0) {
+        const { error } = await supabase.from("profiles").upsert(updates);
+        if (error) console.error("Error updating ratings/streaks", error);
+      }
     }
   };
 
   return (
     <div className="mx-auto max-w-md p-4 sm:p-6 pb-32 sm:pb-6">
-       <div className="mb-8 text-center">
+      <div className="mb-8 text-center">
         <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
           Add Game
         </h1>
@@ -216,16 +212,16 @@ export default function AddGamePage() {
         <AuthForm onSignIn={handleSignIn} onSignUp={handleSignUp} loading={authLoading} />
       ) : (
         <>
-            {error && <div className="mb-4 rounded bg-red-500/10 p-4 text-red-200 border border-red-500/20">{error}</div>}
-            
-            <GameForm
-                form={form}
-                setForm={setForm}
-                profiles={profiles}
-                isSignedIn={!!userId}
-                saving={saving}
-                onSubmit={handleSubmit}
-            />
+          {error && <div className="mb-4 rounded bg-red-500/10 p-4 text-red-200 border border-red-500/20">{error}</div>}
+
+          <GameForm
+            form={form}
+            setForm={setForm}
+            profiles={profiles}
+            isSignedIn={!!userId}
+            saving={saving}
+            onSubmit={handleSubmit}
+          />
         </>
       )}
     </div>
