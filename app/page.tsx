@@ -151,12 +151,7 @@ export default function Home() {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
-      <Header
-        userEmail={userEmail}
-        userName={userName}
-        onSignOut={handleSignOut}
-        authLoading={authLoading}
-      />
+      <Header />
 
       {/* Top Section: Streak Leaders & User Stats */}
       <div className="space-y-8">
@@ -168,7 +163,6 @@ export default function Home() {
 
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="space-y-6">
-            {/* User Stats or Sign In */}
             {/* User Stats or Sign In */}
             {isCheckingSession || (userId && !userName) ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
