@@ -9,10 +9,18 @@ import { mapGame } from "../../lib/types";
 import { AuthForm, type AuthFormData } from "../../components/AuthForm";
 import { getConfig } from "../../lib/config";
 
+interface Profile {
+  id: string;
+  username: string;
+  email: string;
+}
+
+
+
 export default function AddGamePage() {
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [saving, setSaving] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

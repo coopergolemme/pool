@@ -1,13 +1,4 @@
-import { Button } from "./ui/Button";
-
-interface HeaderProps {
-  userEmail: string | null;
-  userName?: string | null;
-  onSignOut: () => void;
-  authLoading: boolean;
-}
-
-export function Header({ userName, onSignOut, authLoading }: HeaderProps) {
+export function Header() {
   return (
     <header className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-6">
@@ -25,8 +16,6 @@ export function Header({ userName, onSignOut, authLoading }: HeaderProps) {
           </div>
         </div>
       </div>
-
-
     </header>
   );
 }

@@ -13,45 +13,58 @@ import {
 } from "recharts";
 
 interface RatingChartProps {
-  data: { 
-      date: string; 
-      rating: number; 
-      gameIndex: number;
-      userRating?: number; // Comparison rating
-      opponent?: string;
-      result?: "W" | "L";
+  data: {
+    date: string;
+    rating: number;
+    gameIndex: number;
+    userRating?: number; // Comparison rating
+    opponent?: string;
+    result?: "W" | "L";
   }[];
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: {
+    payload: {
+      displayDate: string;
+      rating: number;
+      opponent?: string;
+      result?: "W" | "L";
+      userRating?: number;
+    };
+  }[];
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <div className="rounded-xl border border-white/10 bg-black/90 p-3 shadow-xl backdrop-blur-md">
         <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">{data.displayDate}</p>
-        
+
         <div className="flex items-center gap-2 mb-1">
-             <div className="h-2 w-2 rounded-full bg-green-400" />
-             <span className="font-bold text-white">{Math.round(data.rating)}</span>
-             {data.result && (
-                 <span className={`text-xs font-bold ${data.result === "W" ? "text-green-400" : "text-red-400"}`}>
-                     {data.result}
-                 </span>
-             )}
+          <div className="h-2 w-2 rounded-full bg-green-400" />
+          <span className="font-bold text-white">{Math.round(data.rating)}</span>
+          {data.result && (
+            <span className={`text-xs font-bold ${data.result === "W" ? "text-green-400" : "text-red-400"}`}>
+              {data.result}
+            </span>
+          )}
         </div>
-        
+
         {data.opponent && (
-            <div className="mb-2 text-xs text-white/70">
-                vs <span className="text-white">{data.opponent}</span>
-            </div>
+          <div className="mb-2 text-xs text-white/70">
+            vs <span className="text-white">{data.opponent}</span>
+          </div>
         )}
 
         {data.userRating !== undefined && (
-             <div className="mt-2 border-t border-white/10 pt-2 flex items-center gap-2">
-                 <div className="h-2 w-2 rounded-full bg-purple-400" />
-                 <span className="text-xs text-white/70">You:</span>
-                 <span className="font-bold text-white">{Math.round(data.userRating)}</span>
-             </div>
+          <div className="mt-2 border-t border-white/10 pt-2 flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-purple-400" />
+            <span className="text-xs text-white/70">You:</span>
+            <span className="font-bold text-white">{Math.round(data.userRating)}</span>
+          </div>
         )}
       </div>
     );
@@ -76,9 +89,9 @@ export function RatingChart({ data }: RatingChartProps) {
 
   if (chartData.length < 2) {
     return (
-        <div className="flex h-64 items-center justify-center rounded-3xl border border-white/10 bg-white/5 text-sm text-white/50">
-            Not enough data for chart
-        </div>
+      <div className="flex h-64 items-center justify-center rounded-3xl border border-white/10 bg-white/5 text-sm text-white/50">
+        Not enough data for chart
+      </div>
     );
   }
 
@@ -98,9 +111,9 @@ export function RatingChart({ data }: RatingChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-            <XAxis 
-                dataKey="gameIndex" 
-                hide 
+            <XAxis
+              dataKey="gameIndex"
+              hide
             />
             <YAxis
               domain={[Math.floor(minRating - padding), Math.ceil(maxRating + padding)]}
@@ -108,9 +121,9 @@ export function RatingChart({ data }: RatingChartProps) {
             />
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine y={1500} stroke="#ffffff20" strokeDasharray="3 3" />
-            
+
             {/* Comparison Line (You) */}
-             <Line
+            <Line
               type="monotone"
               dataKey="userRating"
               stroke="#a855f7" // Purple

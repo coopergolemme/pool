@@ -1,19 +1,29 @@
+import { Dispatch, SetStateAction } from "react";
 import { haptic } from "../lib/haptics";
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
 import { Card } from "./ui/Card";
-import { Game } from "../lib/glicko";
 
-interface GameFormProps {
-  form: any;
-  setForm: (form: any) => void;
+interface GameFormState {
+  format: "8-ball" | "8-ball-2v2";
+  playerA: string;
+  playerB: string;
+  playerC: string;
+  playerD: string;
+  winner: string;
+  ballsRemaining: string;
+}
+
+interface GameFormProps<T extends GameFormState> {
+  form: T;
+  setForm: Dispatch<SetStateAction<T>>;
   profiles: { id: string; username: string }[];
   isSignedIn: boolean;
   saving: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }
 
-export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit }: GameFormProps) {
+export function GameForm<T extends GameFormState>({ form, setForm, profiles, isSignedIn, saving, onSubmit }: GameFormProps<T>) {
   const teamA = form.format === "8-ball-2v2" ? `${form.playerA} & ${form.playerC}` : form.playerA;
   const teamB = form.format === "8-ball-2v2" ? `${form.playerB} & ${form.playerD}` : form.playerB;
   const teamAReady =
@@ -23,8 +33,8 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
 
   const playerOptions = profiles.map((p) => ({ label: p.username, value: p.username }));
 
-  const updateForm = (updates: any) => {
-      setForm((prev: any) => ({ ...prev, ...updates }));
+  const updateForm = (updates: Partial<GameFormState>) => {
+    setForm((prev) => ({ ...prev, ...updates } as T));
   };
 
   return (
@@ -76,7 +86,7 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
             options={playerOptions}
             disabled={!isSignedIn || saving}
           />
-          
+
           <Select
             label={form.format === "8-ball-2v2" ? "Team B • Player 1" : "Player 2"}
             value={form.playerB}
@@ -110,7 +120,7 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
               <Button
                 type="button"
                 className="w-full"
-                 variant={form.winner === teamA ? "primary" : "outline"}
+                variant={form.winner === teamA ? "primary" : "outline"}
                 onClick={() => updateForm({ winner: teamA })}
                 disabled={!isSignedIn || saving || !teamAReady}
               >
@@ -147,7 +157,7 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
               >
                 -
               </Button>
-              
+
               <div className="flex-1 rounded-xl border border-white/10 bg-white/5 py-3 text-center">
                 <span className="text-2xl font-bold text-white normal-case tracking-normal">
                   {form.ballsRemaining}
@@ -159,11 +169,11 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
                 variant="outline"
                 className="h-12 w-12 rounded-xl p-0 text-xl font-bold"
                 onClick={() => {
-                   const current = parseInt(form.ballsRemaining) || 0;
-                   if (current < 7) {
-                     haptic.light();
-                     updateForm({ ballsRemaining: (current + 1).toString() });
-                   }
+                  const current = parseInt(form.ballsRemaining) || 0;
+                  if (current < 7) {
+                    haptic.light();
+                    updateForm({ ballsRemaining: (current + 1).toString() });
+                  }
                 }}
                 disabled={!isSignedIn || saving}
               >
@@ -176,8 +186,8 @@ export function GameForm({ form, setForm, profiles, isSignedIn, saving, onSubmit
         <Button
           type="submit"
           className="w-full"
-           disabled={!isSignedIn || saving || !form.winner}
-           onClick={() => haptic.medium()}
+          disabled={!isSignedIn || saving || !form.winner}
+          onClick={() => haptic.medium()}
         >
           {saving ? "Saving..." : "Add Game Result"}
         </Button>

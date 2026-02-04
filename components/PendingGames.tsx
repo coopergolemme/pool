@@ -17,7 +17,6 @@ interface PendingGamesProps {
 
 export function PendingGames({ userId, userName, onUpdate, enabled = true }: PendingGamesProps) {
   const [pendingGames, setPendingGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!enabled || !userId || !userName) {
@@ -26,7 +25,6 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
     }
 
     const fetchPending = async () => {
-      setLoading(true);
       if (!supabase) return;
 
       // Fetch all pending games. 
@@ -49,11 +47,10 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
         });
         setPendingGames(relevant);
       }
-      setLoading(false);
     };
 
     fetchPending();
-  }, [userId, userName]);
+  }, [userId, userName, enabled]);
 
   const handleAction = async (gameId: string, action: "accept" | "reject") => {
     try {

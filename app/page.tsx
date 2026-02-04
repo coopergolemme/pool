@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase/client";
 import { Header } from "../components/Header";
 import { RecentGames } from "../components/RecentGames";
-import { computeRatingHistory, computeRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL, type Game } from "../lib/glicko";
+import { computeRatingHistory, computeRatings, type Game } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { AuthForm, type AuthFormData } from "../components/AuthForm";
 import { PendingGames } from "../components/PendingGames";
@@ -12,7 +12,6 @@ import { StreakLeaders } from "../components/StreakLeaders";
 import { UserStatsCard } from "../components/UserStatsCard";
 import { Skeleton } from "../components/ui/Skeleton";
 import { PushManager } from "../components/PushManager";
-import { PWAInstall } from "../components/PWAInstall";
 import { getConfig } from "../lib/config";
 import { Button } from "@/components/ui/Button";
 
@@ -31,7 +30,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!supabase) {
-      setLoading(false);
+      // setLoading(false);
       return;
     }
 
@@ -161,7 +160,6 @@ export default function Home() {
 
       {/* Top Section: Streak Leaders & User Stats */}
       <div className="space-y-8">
-        <PWAInstall />
         <PushManager userId={userId} />
         {/* Active Streaks */}
         {userId && (
