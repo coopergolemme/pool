@@ -26,8 +26,16 @@ export async function POST(request: Request) {
 
     const game = gameData as DbGame;
 
-    // Check permissions: User must be the opponent
-    if (game.opponent_id && game.opponent_id !== userId) {
+    // Check permissions: User must be the opponent OR an admin
+    const { data: requesterProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+    const isAdmin = requesterProfile?.role === "ADMIN";
+
+    if (!isAdmin && game.opponent_id && game.opponent_id !== userId) {
          return NextResponse.json({ error: "Unauthorized: You are not the opponent" }, { status: 403 });
     }
 

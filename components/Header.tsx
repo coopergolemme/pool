@@ -15,6 +15,9 @@ export function Header() {
             </h1>
           </div>
         </div>
+        <div className="flex items-center gap-4">
+          {/* <RulesModal /> */}
+        </div>
       </div>
     </header>
   );

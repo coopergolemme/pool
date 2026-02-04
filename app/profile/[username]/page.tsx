@@ -64,11 +64,6 @@ export default function ProfilePage() {
             if (profileData) {
                 setProfile(profileData);
             }
-
-            // Fetch all games to compute accurate stats/history
-            // optimizing this might differ in production (e.g. server-side aggregation)
-            // but for Glicko we generally need history. 
-            // We could filter fetching, but computeRatings needs context of opponents too ideally.
             // For now, let's fetch all games and filter in memory for display, to ensure computeRatings has full context.
             if (!supabase) return;
             const { data: gamesData } = await supabase
