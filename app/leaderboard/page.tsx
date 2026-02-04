@@ -15,18 +15,15 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) return;
-
     const fetchData = async () => {
-      setLoading(true);
-
       if (!supabase) return;
-      
+
+      setLoading(true);
       const { data: gamesData } = await supabase
         .from("games")
         .select("*")
         .order("date", { ascending: false });
-      
+
       if (!supabase) return;
 
       const { data: profilesData } = await supabase
@@ -34,7 +31,7 @@ export default function LeaderboardPage() {
         .select("id, username, email, rating, rd, vol, streak");
 
       if (gamesData) setGames(gamesData.map(mapGame));
-      
+
       if (profilesData) {
         setProfiles(
           profilesData
@@ -50,7 +47,7 @@ export default function LeaderboardPage() {
             }))
         );
       }
-      
+
       setLoading(false);
     };
 
@@ -59,7 +56,7 @@ export default function LeaderboardPage() {
 
   const stats = useMemo(() => {
     const gameStats = computeRatings(games);
-    
+
     const leaderboard = profiles.map((profile) => {
       const record = gameStats.get(profile.username) ?? {
         rating: profile.rating ?? DEFAULT_RATING,
@@ -69,7 +66,7 @@ export default function LeaderboardPage() {
         losses: 0,
         streak: profile.streak ?? 0,
       };
-      
+
       const gamesPlayed = record.wins + record.losses;
       const winRate = gamesPlayed ? Math.round((record.wins / gamesPlayed) * 100) : 0;
 
@@ -86,24 +83,24 @@ export default function LeaderboardPage() {
     });
 
     leaderboard.sort((a, b) => b.rating - a.rating || b.winRate - a.winRate);
-    
+
     return leaderboard.filter(p => p.gamesPlayed > 0);
   }, [games, profiles]);
 
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6">
-       <div className="mb-8 text-center">
+      <div className="mb-8 text-center">
         <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
           Leaderboard
         </h1>
         <p className="mt-2 text-white/50">Global Rankings & Stats</p>
       </div>
-      
+
       {loading ? (
         <div className="space-y-4">
-           {[...Array(8)].map((_, i) => (
-             <Skeleton key={i} className="h-16 w-full rounded-2xl" />
-           ))}
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+          ))}
         </div>
       ) : (
         <Leaderboard leaderboard={stats} />

@@ -29,17 +29,14 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase) {
-      // setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
     getConfig("require_verification", true).then(setRequireVerification);
 
     const fetchData = async () => {
-      setLoading(true);
 
       if (!supabase) return;
+      setLoading(true);
 
       const { data: gamesData } = await supabase
         .from("games")
