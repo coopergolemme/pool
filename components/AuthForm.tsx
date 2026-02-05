@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 import { Card } from "./ui/Card";
@@ -79,6 +80,17 @@ export function AuthForm({ onSignIn, onSignUp, loading, error }: AuthFormProps) 
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
+
+        {!isSignUp && (
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-[10px] sm:text-xs text-white/60 hover:text-white transition-colors"
+            >
+              Forgot Password?
+            </Link>
+          </div>
+        )}
 
         <div className="space-y-3">
           <Button type="submit" disabled={loading} className="w-full">
