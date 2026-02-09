@@ -36,7 +36,7 @@ export function Navigation() {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <nav className="relative z-[100] border-t border-white/10 bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-black/60 pb-[max(env(safe-area-inset-bottom),1rem)] sm:fixed sm:top-0 sm:bottom-auto sm:left-0 sm:right-0 sm:border-b sm:border-t-0 sm:pb-0">
+    <nav className="relative z-[100] border-t border-white/10 bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-black/60 pb-[max(env(safe-area-inset-bottom),1rem)] standalone:fixed standalone:bottom-0 standalone:left-0 standalone:right-0 sm:fixed sm:top-0 sm:bottom-auto sm:left-0 sm:right-0 sm:border-b sm:border-t-0 sm:pb-0">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="hidden font-[var(--font-display)] text-xl tracking-wider text-white sm:block">
           POOL
