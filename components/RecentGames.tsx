@@ -1,4 +1,3 @@
-import { formatLabels } from "../lib/types";
 import { type Game } from "../lib/glicko";
 import Link from "next/link";
 import { Skeleton } from "./ui/Skeleton";
