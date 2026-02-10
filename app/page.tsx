@@ -16,10 +16,6 @@ import { getConfig } from "../lib/config";
 import { Button } from "@/components/ui/Button";
 
 export default function Home() {
-  interface Profile {
-    id: string;
-    username: string | null;
-  }
   interface RatingChange {
     gameId: string;
     username: string;
@@ -43,9 +39,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [ratingChanges, setRatingChanges] = useState<RatingChange[]>([]);
   const [streakLeaders, setStreakLeaders] = useState<StreakLeader[]>([]);
   const [userStats, setUserStats] = useState<CurrentUserStats | null>(null);
@@ -60,12 +56,14 @@ export default function Home() {
     if (!res.ok || !data.user) {
       setUserEmail(null);
       setUserId(null);
+      setUserName(null);
       setIsCheckingSession(false);
       return;
     }
 
     setUserEmail(data.user.email ?? null);
     setUserId(data.user.id ?? null);
+    setUserName(data.profile?.username ?? null);
     setIsCheckingSession(false);
   };
 
@@ -114,17 +112,10 @@ export default function Home() {
       const userStatsPayload = await userStatsRes.json();
       const userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
 
-      if (!supabase) return;
-
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("*");
-
       if (gamesData) setGames(gamesData.map(mapGame));
       if (ratingHistoryData) setRatingChanges(ratingHistoryData);
       setStreakLeaders(streaksData);
       setUserStats(userStatsData);
-      if (profilesData) setProfiles(profilesData);
 
       setLoading(false);
     };
@@ -134,14 +125,6 @@ export default function Home() {
       void fetchSession();
     }, 0);
   }, [refreshKey]);
-
-  const userName = useMemo(() => {
-    if (userId && profiles.length > 0) {
-      const profile = profiles.find((p) => p.id === userId);
-      return profile ? profile.username : null;
-    }
-    return null;
-  }, [userId, profiles]);
 
   const handleSignIn = async (authForm: AuthFormData) => {
     setAuthLoading(true);
@@ -201,6 +184,7 @@ export default function Home() {
     await fetch("/api/sign-out", { method: "POST" });
     setUserEmail(null);
     setUserId(null);
+    setUserName(null);
     setUserStats(null);
     setAuthLoading(false);
   };
