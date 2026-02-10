@@ -39,18 +39,23 @@ export default function AddGamePage() {
     ballsRemaining: "3",
   });
 
+  const fetchSession = async () => {
+    const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || !data.user) {
+      setUserId(null);
+      return;
+    }
+    setUserId(data.user.id ?? null);
+  };
+
   useEffect(() => {
     if (!supabase) return;
 
     getConfig("require_verification", true).then(setRequireVerification);
-
-    supabase.auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user.id ?? null);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user.id ?? null);
-    });
+    setTimeout(() => {
+      void fetchSession();
+    }, 0);
 
     const loadProfiles = async () => {
       if (!supabase) return;
@@ -72,40 +77,57 @@ export default function AddGamePage() {
     };
 
     loadProfiles();
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   }, [userId]);
 
   const handleSignIn = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     setAuthLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-    if (error) setError(error.message);
+    setError(null);
+    try {
+      const res = await fetch("/api/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign in failed");
+      } else {
+        await fetchSession();
+      }
+    } catch {
+      setError("Sign in failed");
+    }
     setAuthLoading(false);
   };
 
   const handleSignUp = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     if (!authForm.username) return setError("Username required");
 
     setAuthLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-
-    if (error) {
-      setError(error.message);
-    } else if (data.user?.id) {
-      await supabase.from("profiles").upsert(
-        { id: data.user.id, email: authForm.email, username: authForm.username },
-        { onConflict: "id" }
-      );
+    setError(null);
+    try {
+      const res = await fetch("/api/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+          username: authForm.username,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign up failed");
+      } else if (data.needsEmailConfirmation) {
+        setError("Check your email to confirm your account before signing in.");
+      } else {
+        await fetchSession();
+      }
+    } catch {
+      setError("Sign up failed");
     }
     setAuthLoading(false);
   };

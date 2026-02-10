@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DbGame } from "@/lib/types";
+import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 
 
 export async function POST(request: Request) {
   try {
-    const { gameId, action, userId } = await request.json();
+    const { gameId, action } = await request.json();
     
-    if (!gameId || !action || !userId) {
+    if (!gameId || !action) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const { user, refreshed } = await getAuthUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
 
     const supabase = createAdminClient();
 
@@ -56,7 +63,11 @@ export async function POST(request: Request) {
         if (deleteError) throw deleteError;
         
         // If rejected, no need to update ratings as pending games don't affect ratings
-        return NextResponse.json({ success: true });
+        const response = NextResponse.json({ success: true });
+        if (refreshed) {
+          setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
+        }
+        return response;
     } else {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -151,7 +162,11 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    if (refreshed) {
+      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
+    }
+    return response;
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

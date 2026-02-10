@@ -41,3 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md

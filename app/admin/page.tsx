@@ -14,29 +14,18 @@ import Link from "next/link";
 export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [games, setGames] = useState<Game[]>([]);
-    const [userId, setUserId] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
-        if (!supabase) return;
-
         const checkAuth = async () => {
-            if (!supabase) return;
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
+            const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+            const data = await res.json();
+            if (!res.ok || !data.user) {
                 setLoading(false);
                 return;
             }
 
-            setUserId(session.user.id);
-
-            const { data: profile } = await supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", session.user.id)
-                .single();
-
-            if (profile?.role === "ADMIN") {
+            if (data.profile?.role === "ADMIN") {
                 setIsAdmin(true);
                 fetchPendingGames();
             } else {
@@ -44,7 +33,7 @@ export default function AdminPage() {
             }
         };
 
-        checkAuth();
+        void checkAuth();
     }, []);
 
     const fetchPendingGames = async () => {
@@ -66,7 +55,7 @@ export default function AdminPage() {
             const res = await fetch("/api/games/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ gameId, action, userId })
+                body: JSON.stringify({ gameId, action })
             });
 
             const data = await res.json();

@@ -4,33 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { haptic } from "../lib/haptics";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase/client";
 
 export function Navigation() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (!supabase) return;
-
-    // Check if user is admin
     const checkAdmin = async () => {
-      if (!supabase) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profile?.role === "ADMIN") {
+      const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.profile?.role === "ADMIN") {
         setIsAdmin(true);
       }
     };
 
-    checkAdmin();
+    void checkAdmin();
   }, []);
 
   const isActive = (path: string) => pathname === path;

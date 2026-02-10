@@ -16,17 +16,37 @@ import { getConfig } from "../lib/config";
 import { Button } from "@/components/ui/Button";
 
 export default function Home() {
+  interface Profile {
+    id: string;
+    username: string | null;
+  }
+
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchSession = async () => {
+    const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || !data.user) {
+      setUserEmail(null);
+      setUserId(null);
+      setIsCheckingSession(false);
+      return;
+    }
+
+    setUserEmail(data.user.email ?? null);
+    setUserId(data.user.id ?? null);
+    setIsCheckingSession(false);
+  };
 
   useEffect(() => {
     if (!supabase) return;
@@ -58,30 +78,9 @@ export default function Home() {
     };
 
     fetchData();
-
-    supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user.email ?? null);
-      setUserId(data.session?.user.id ?? null);
-      setIsCheckingSession(false);
-    });
-
-    if (!supabase) return;
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
-      setUserId(session?.user.id ?? null);
-      if (session?.user?.id && session.user.email) {
-        if (supabase) {
-          void supabase
-            .from("profiles")
-            .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id" });
-        }
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    setTimeout(() => {
+      void fetchSession();
+    }, 0);
   }, [refreshKey]);
 
   const userName = useMemo(() => {
@@ -93,44 +92,63 @@ export default function Home() {
   }, [userId, profiles]);
 
   const handleSignIn = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     setAuthLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-    if (error) {
-      setError(error.message);
-    } else {
-      refreshPage();
+    try {
+      const res = await fetch("/api/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign in failed");
+      } else {
+        await fetchSession();
+        setRefreshKey((k) => k + 1);
+      }
+    } catch {
+      setError("Sign in failed");
     }
     setAuthLoading(false);
   };
 
   const handleSignUp = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     setAuthLoading(true);
     setError(null);
-    const { data, error } = await supabase.auth.signUp({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-
-    if (error) {
-      setError(error.message);
-    } else if (data.user?.id && authForm.username) {
-      await supabase
-        .from("profiles")
-        .upsert({ id: data.user.id, email: authForm.email, username: authForm.username }, { onConflict: "id" });
+    try {
+      const res = await fetch("/api/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+          username: authForm.username,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign up failed");
+      } else if (data.needsEmailConfirmation) {
+        setError("Check your email to confirm your account before signing in.");
+      } else {
+        await fetchSession();
+        setRefreshKey((k) => k + 1);
+      }
+    } catch {
+      setError("Sign up failed");
     }
     setAuthLoading(false);
   };
 
   const handleSignOut = async () => {
-    if (!supabase) return;
     setAuthLoading(true);
-    await supabase.auth.signOut();
+    await fetch("/api/sign-out", { method: "POST" });
+    setUserEmail(null);
+    setUserId(null);
     setAuthLoading(false);
   };
 
@@ -213,7 +231,3 @@ export default function Home() {
     </main>
   );
 }
-function refreshPage() {
-  window.location.reload();
-}
-

@@ -21,29 +21,28 @@ export default function ProfilePage() {
     const [profile, setProfile] = useState<{ id: string; username: string; email: string; rating: number; rd: number; vol: number; streak: number } | null>(null);
 
     useEffect(() => {
-        if (!supabase) return;
-
-        supabase.auth.getSession().then(async ({ data }) => {
-            if (data.session?.user?.id) {
-                if (!supabase) return;
-                const { data: userData } = await supabase.from("profiles").select("username").eq("id", data.session.user.id).single();
-                if (userData) setCurrentUserProfile(userData);
+        const fetchCurrentUser = async () => {
+            const authRes = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+            const authData = await authRes.json();
+            if (!authRes.ok || !authData.user?.id || !supabase) {
+                setCurrentUserProfile(null);
+                return;
             }
-        });
 
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user?.id) {
-                if (!supabase) return;
-                const { data: userData } = await supabase.from("profiles").select("username").eq("id", session.user.id).single();
-                if (userData) setCurrentUserProfile(userData);
+            const { data: userData } = await supabase
+                .from("profiles")
+                .select("username")
+                .eq("id", authData.user.id)
+                .single();
+
+            if (userData) {
+                setCurrentUserProfile(userData);
             } else {
                 setCurrentUserProfile(null);
             }
-        });
-
-        return () => {
-            authListener.subscription.unsubscribe();
         };
+
+        void fetchCurrentUser();
     }, []);
 
     useEffect(() => {
