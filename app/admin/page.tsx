@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { Header } from "@/components/Header";
-import { mapGame } from "@/lib/types";
 import { Game } from "@/lib/glicko";
 import { motion, AnimatePresence } from "framer-motion";
 import { haptic } from "@/lib/haptics";
@@ -37,16 +35,17 @@ export default function AdminPage() {
     }, []);
 
     const fetchPendingGames = async () => {
-        if (!supabase) return;
-        const { data } = await supabase
-            .from("games")
-            .select("*")
-            .eq("status", "pending")
-            .order("created_at", { ascending: false });
-
-        if (data) {
-            setGames(data.map(mapGame));
+        const res = await fetch("/api/games/pending?scope=admin", {
+            method: "GET",
+            cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            toast.error(data.error || "Failed to fetch pending games");
+            setLoading(false);
+            return;
         }
+        setGames((data.games ?? []) as Game[]);
         setLoading(false);
     };
 

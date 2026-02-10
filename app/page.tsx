@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase/client";
 import { Header } from "../components/Header";
 import { RecentGames } from "../components/RecentGames";
-import { computeRatingHistory, computeRatings, type Game } from "../lib/glicko";
+import { computeRatings, type Game, type RatingHistory } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { AuthForm, type AuthFormData } from "../components/AuthForm";
 import { PendingGames } from "../components/PendingGames";
@@ -20,6 +20,12 @@ export default function Home() {
     id: string;
     username: string | null;
   }
+  interface RatingChange {
+    gameId: string;
+    username: string;
+    postRating: number;
+    ratingDelta: number;
+  }
 
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +34,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [ratingChanges, setRatingChanges] = useState<RatingChange[]>([]);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
@@ -64,6 +71,20 @@ export default function Home() {
       });
       const gamesPayload = await gamesRes.json();
       const gamesData = gamesRes.ok ? gamesPayload.games : null;
+      const recentGameIds: string[] = (gamesData ?? []).slice(0, 20).map((g: { id: string }) => g.id);
+
+      let ratingHistoryData: RatingChange[] | null = [];
+      if (recentGameIds.length > 0) {
+        const ratingHistoryRes = await fetch(
+          `/api/rating-history?limit=2000&gameIds=${encodeURIComponent(recentGameIds.join(","))}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
+        const ratingHistoryPayload = await ratingHistoryRes.json();
+        ratingHistoryData = ratingHistoryRes.ok ? ratingHistoryPayload.changes : null;
+      }
 
       if (!supabase) return;
 
@@ -72,6 +93,7 @@ export default function Home() {
         .select("*");
 
       if (gamesData) setGames(gamesData.map(mapGame));
+      if (ratingHistoryData) setRatingChanges(ratingHistoryData);
       if (profilesData) setProfiles(profilesData);
 
       setLoading(false);
@@ -153,7 +175,21 @@ export default function Home() {
   };
 
   const verifiedGames = useMemo(() => games.filter(g => g.status === "verified"), [games]);
-  const ratingHistory = useMemo(() => computeRatingHistory(verifiedGames), [verifiedGames]);
+
+  const ratingHistory = useMemo<RatingHistory>(() => {
+    return ratingChanges.reduce<RatingHistory>((acc, change) => {
+      if (!acc[change.gameId]) {
+        acc[change.gameId] = {};
+      }
+      acc[change.gameId][change.username] = {
+        rating: change.postRating,
+        delta: change.ratingDelta,
+      };
+      return acc;
+    }, {});
+  }, [ratingChanges]);
+
+  console.log("Rating History:", ratingHistory);
 
   // Compute Glicko stats for all players to find streak leaders
   const playerStats = useMemo(() => computeRatings(verifiedGames), [verifiedGames]);

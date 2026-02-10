@@ -122,11 +122,25 @@ export async function POST(request: Request) {
         };
 
         const updates: ProfileUpdate[] = [];
+        const ratingChanges: Array<{
+          game_id: string;
+          profile_id: string;
+          username: string;
+          format: string;
+          result: "win" | "loss";
+          pre_rating: number;
+          post_rating: number;
+          pre_rd: number;
+          post_rd: number;
+          pre_vol: number;
+          post_vol: number;
+        }> = [];
 
         teamAPlayers.forEach(name => {
           const profile = profiles.find(p => p.username === name);
           if (profile) {
-            const newStats = calculateNewRatings(getStats(name), teamBRating, teamBRD, scoreA);
+            const previous = getStats(name);
+            const newStats = calculateNewRatings(previous, teamBRating, teamBRD, scoreA);
             updates.push({
               id: profile.id,
               rating: newStats.rating,
@@ -135,6 +149,19 @@ export async function POST(request: Request) {
               wins: newStats.wins,
               losses: newStats.losses,
               streak: newStats.streak
+            });
+            ratingChanges.push({
+              game_id: game.id,
+              profile_id: profile.id,
+              username: name,
+              format: game.format ?? "8-ball",
+              result: scoreA === 1 ? "win" : "loss",
+              pre_rating: previous.rating,
+              post_rating: newStats.rating,
+              pre_rd: previous.rd,
+              post_rd: newStats.rd,
+              pre_vol: previous.vol,
+              post_vol: newStats.vol,
             });
           }
         });
@@ -142,7 +169,8 @@ export async function POST(request: Request) {
         teamBPlayers.forEach(name => {
           const profile = profiles.find(p => p.username === name);
           if (profile) {
-            const newStats = calculateNewRatings(getStats(name), teamARating, teamARD, scoreB);
+            const previous = getStats(name);
+            const newStats = calculateNewRatings(previous, teamARating, teamARD, scoreB);
             updates.push({
               id: profile.id,
               rating: newStats.rating,
@@ -152,12 +180,32 @@ export async function POST(request: Request) {
               losses: newStats.losses,
               streak: newStats.streak
             });
+            ratingChanges.push({
+              game_id: game.id,
+              profile_id: profile.id,
+              username: name,
+              format: game.format ?? "8-ball",
+              result: scoreB === 1 ? "win" : "loss",
+              pre_rating: previous.rating,
+              post_rating: newStats.rating,
+              pre_rd: previous.rd,
+              post_rd: newStats.rd,
+              pre_vol: previous.vol,
+              post_vol: newStats.vol,
+            });
           }
         });
 
         if (updates.length > 0) {
           const { error: upsertError } = await supabase.from("profiles").upsert(updates);
           if (upsertError) console.error("Rating update failed", upsertError);
+        }
+
+        if (ratingChanges.length > 0) {
+          const { error: historyError } = await supabase
+            .from("game_rating_changes")
+            .upsert(ratingChanges, { onConflict: "game_id,profile_id" });
+          if (historyError) console.error("Rating history insert failed", historyError);
         }
       }
     }

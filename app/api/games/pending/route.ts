@@ -7,19 +7,39 @@ export async function GET(request: Request) {
   try {
     const { user, refreshed } = await getAuthUserFromRequest(request);
     const userId = user?.id;
+    const { searchParams } = new URL(request.url);
+    const adminMode = searchParams.get("scope") === "admin";
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("games")
       .select("*")
       .eq("status", "pending")
-      .eq("opponent_id", userId)
-      .neq("submitted_by", userId)
       .order("created_at", { ascending: false });
+
+    if (adminMode) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      if (profile?.role !== "ADMIN") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else {
+      query = query.eq("opponent_id", userId).neq("submitted_by", userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
