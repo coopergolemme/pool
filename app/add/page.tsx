@@ -2,11 +2,9 @@
 
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase/client";
 import { GameForm } from "../../components/GameForm";
 import { type Game } from "../../lib/glicko";
 import { AuthForm, type AuthFormData } from "../../components/AuthForm";
-import { getConfig } from "../../lib/config";
 
 interface Profile {
   id: string;
@@ -49,29 +47,41 @@ export default function AddGamePage() {
   };
 
   useEffect(() => {
-    if (!supabase) return;
+    const fetchConfig = async () => {
+      const res = await fetch("/api/config?key=require_verification", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (res.ok && typeof data.value === "boolean") {
+        setRequireVerification(data.value);
+      } else {
+        setRequireVerification(true);
+      }
+    };
 
-    getConfig("require_verification", true).then(setRequireVerification);
+    void fetchConfig();
     setTimeout(() => {
       void fetchSession();
     }, 0);
 
     const loadProfiles = async () => {
-      if (!supabase) return;
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, email")
-        .order("username");
-      if (data) {
-        setProfiles(data);
+      const res = await fetch("/api/profiles", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.profiles)) {
+        setProfiles(data.profiles);
         // Auto-select signed-in user
         if (userId) {
-          const userProfile = data.find((p) => p.id === userId);
+          const userProfile = data.profiles.find((p: Profile) => p.id === userId);
           if (userProfile) {
             setForm(prev => ({ ...prev, playerA: userProfile.username }));
           }
         }
+      } else {
+        setProfiles([]);
       }
     };
 
