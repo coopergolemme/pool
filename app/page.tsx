@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase/client";
 import { Header } from "../components/Header";
 import { RecentGames } from "../components/RecentGames";
-import { computeRatings, type Game, type RatingHistory } from "../lib/glicko";
+import { type Game, type RatingHistory } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { AuthForm, type AuthFormData } from "../components/AuthForm";
 import { PendingGames } from "../components/PendingGames";
@@ -26,6 +26,18 @@ export default function Home() {
     postRating: number;
     ratingDelta: number;
   }
+  interface StreakLeader {
+    id: string;
+    username: string;
+    streak: number;
+  }
+  interface CurrentUserStats {
+    rating: number;
+    wins: number;
+    losses: number;
+    streak: number;
+    rd: number;
+  }
 
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +47,8 @@ export default function Home() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [ratingChanges, setRatingChanges] = useState<RatingChange[]>([]);
+  const [streakLeaders, setStreakLeaders] = useState<StreakLeader[]>([]);
+  const [userStats, setUserStats] = useState<CurrentUserStats | null>(null);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
@@ -86,6 +100,20 @@ export default function Home() {
         ratingHistoryData = ratingHistoryRes.ok ? ratingHistoryPayload.changes : null;
       }
 
+      const streaksRes = await fetch("/api/streaks?min=3&limit=20", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const streaksPayload = await streaksRes.json();
+      const streaksData = streaksRes.ok ? (streaksPayload.leaders as StreakLeader[]) : [];
+
+      const userStatsRes = await fetch("/api/me/stats", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const userStatsPayload = await userStatsRes.json();
+      const userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
+
       if (!supabase) return;
 
       const { data: profilesData } = await supabase
@@ -94,6 +122,8 @@ export default function Home() {
 
       if (gamesData) setGames(gamesData.map(mapGame));
       if (ratingHistoryData) setRatingChanges(ratingHistoryData);
+      setStreakLeaders(streaksData);
+      setUserStats(userStatsData);
       if (profilesData) setProfiles(profilesData);
 
       setLoading(false);
@@ -171,6 +201,7 @@ export default function Home() {
     await fetch("/api/sign-out", { method: "POST" });
     setUserEmail(null);
     setUserId(null);
+    setUserStats(null);
     setAuthLoading(false);
   };
 
@@ -189,17 +220,6 @@ export default function Home() {
     }, {});
   }, [ratingChanges]);
 
-  console.log("Rating History:", ratingHistory);
-
-  // Compute Glicko stats for all players to find streak leaders
-  const playerStats = useMemo(() => computeRatings(verifiedGames), [verifiedGames]);
-
-  // Find current user's stats
-  const userStats = useMemo(() => {
-    if (!userName || !playerStats) return null;
-    return playerStats.get(userName) ?? null;
-  }, [userName, playerStats]);
-
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
       <Header />
@@ -209,7 +229,7 @@ export default function Home() {
         <PushManager userId={userId} />
         {/* Active Streaks */}
         {userId && (
-          <StreakLeaders stats={playerStats} loading={loading} />
+          <StreakLeaders leaders={streakLeaders} loading={loading} />
         )}
 
         <div className="grid lg:grid-cols-2 gap-8">
