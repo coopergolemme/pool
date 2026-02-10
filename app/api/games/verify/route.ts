@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DbGame } from "@/lib/types";
 import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
 
 
 export async function POST(request: Request) {
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
             .eq("id", gameId);
         
         if (updateError) throw updateError;
+        revalidateTag(CACHE_TAGS.games, "max");
     } else if (action === "reject") {
         const { error: deleteError } = await supabase
             .from("games")
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
         if (deleteError) throw deleteError;
         
         // If rejected, no need to update ratings as pending games don't affect ratings
+        revalidateTag(CACHE_TAGS.games, "max");
         const response = NextResponse.json({ success: true });
         if (refreshed) {
           setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
@@ -206,6 +210,15 @@ export async function POST(request: Request) {
             .from("game_rating_changes")
             .upsert(ratingChanges, { onConflict: "game_id,profile_id" });
           if (historyError) console.error("Rating history insert failed", historyError);
+        }
+
+        revalidateTag(CACHE_TAGS.games, "max");
+        revalidateTag(CACHE_TAGS.leaderboard, "max");
+        revalidateTag(CACHE_TAGS.streaks, "max");
+        revalidateTag(CACHE_TAGS.ratingHistory, "max");
+        revalidateTag(CACHE_TAGS.profiles, "max");
+        for (const name of new Set(allPlayerNames)) {
+          revalidateTag(profileTag(name), "max");
         }
       }
     }

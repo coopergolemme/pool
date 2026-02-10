@@ -15,6 +15,10 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY || ''
 );
 
+type PushSubscriptionRow = {
+  subscription: webpush.PushSubscription;
+};
+
 export async function POST(request: Request) {
   try {
     const { userId, title, body, url } = await request.json();
@@ -36,12 +40,13 @@ export async function POST(request: Request) {
     const payload = JSON.stringify({ title, body, url });
 
     const results = await Promise.allSettled(
-      subs.map(row => webpush.sendNotification(row.subscription as any, payload))
+      (subs as PushSubscriptionRow[]).map((row) => webpush.sendNotification(row.subscription, payload))
     );
 
     return NextResponse.json({ success: true, results });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Push error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

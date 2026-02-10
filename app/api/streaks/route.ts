@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 const DEFAULT_MIN_STREAK = 3;
 const DEFAULT_LIMIT = 20;
@@ -22,26 +24,31 @@ export async function GET(request: Request) {
     }
 
     const limit = Math.min(parsedLimit, MAX_LIMIT);
-    const supabase = createAdminClient();
+    const getStreaks = unstable_cache(
+      async (requestedMin: number, requestedLimit: number) => {
+        const supabase = createAdminClient();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, username, streak")
+          .not("username", "is", null)
+          .gte("streak", requestedMin)
+          .order("streak", { ascending: false })
+          .order("username", { ascending: true })
+          .limit(requestedLimit);
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, username, streak")
-      .not("username", "is", null)
-      .gte("streak", min)
-      .order("streak", { ascending: false })
-      .order("username", { ascending: true })
-      .limit(limit);
+        if (error) throw error;
 
-    if (error) {
-      throw error;
-    }
+        return (data ?? []).map((row) => ({
+          id: row.id,
+          username: row.username as string,
+          streak: row.streak ?? 0,
+        }));
+      },
+      ["api-streaks"],
+      { revalidate: 60, tags: [CACHE_TAGS.streaks, CACHE_TAGS.profiles] },
+    );
 
-    const leaders = (data ?? []).map((row) => ({
-      id: row.id,
-      username: row.username as string,
-      streak: row.streak ?? 0,
-    }));
+    const leaders = await getStreaks(min, limit);
 
     return NextResponse.json({ leaders });
   } catch (error) {

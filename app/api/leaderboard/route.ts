@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
@@ -21,37 +23,43 @@ export async function GET(request: Request) {
     }
 
     const limit = Math.min(parsedLimit, MAX_LIMIT);
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("username, rating, rd, wins, losses, streak")
-      .not("username", "is", null)
-      .order("rating", { ascending: false })
-      .limit(limit);
+    const getLeaderboard = unstable_cache(
+      async (requestedLimit: number) => {
+        const supabase = createAdminClient();
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("username, rating, rd, wins, losses, streak")
+          .not("username", "is", null)
+          .order("rating", { ascending: false })
+          .limit(requestedLimit);
 
-    if (error) {
-      throw error;
-    }
+        if (error) throw error;
 
-    const leaderboard = (data ?? [])
-      .map((row) => {
-        const wins = row.wins ?? 0;
-        const losses = row.losses ?? 0;
-        const gamesPlayed = wins + losses;
-        const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
-        return {
-          player: row.username as string,
-          rating: Math.round(toNumber(row.rating)),
-          rd: Math.round(toNumber(row.rd)),
-          wins,
-          losses,
-          streak: row.streak ?? 0,
-          gamesPlayed,
-          winRate,
-        };
-      })
-      .filter((p) => p.gamesPlayed > 0)
-      .sort((a, b) => b.rating - a.rating || b.winRate - a.winRate);
+        return (data ?? [])
+          .map((row) => {
+            const wins = row.wins ?? 0;
+            const losses = row.losses ?? 0;
+            const gamesPlayed = wins + losses;
+            const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
+            return {
+              player: row.username as string,
+              rating: Math.round(toNumber(row.rating)),
+              rd: Math.round(toNumber(row.rd)),
+              wins,
+              losses,
+              streak: row.streak ?? 0,
+              gamesPlayed,
+              winRate,
+            };
+          })
+          .filter((p) => p.gamesPlayed > 0)
+          .sort((a, b) => b.rating - a.rating || b.winRate - a.winRate);
+      },
+      ["api-leaderboard"],
+      { revalidate: 60, tags: [CACHE_TAGS.leaderboard, CACHE_TAGS.profiles] },
+    );
+
+    const leaderboard = await getLeaderboard(limit);
 
     return NextResponse.json({ leaderboard });
   } catch (error) {

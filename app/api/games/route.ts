@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
+import { unstable_cache, revalidateTag } from "next/cache";
+import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
+import { parseTeam } from "@/lib/glicko";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 400;
@@ -19,21 +22,25 @@ export async function GET(request: Request) {
     }
 
     const limit = Math.min(parsedLimit, MAX_LIMIT);
-    const supabase = createAdminClient();
+    const getGames = unstable_cache(
+      async (requestedLimit: number) => {
+        const supabase = createAdminClient();
+        const { data, error } = await supabase
+          .from("games")
+          .select("*")
+          .eq("status", "verified")
+          .order("date", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(requestedLimit);
 
-    const { data, error } = await supabase
-      .from("games")
-      .select("*")
-      .eq("status", "verified")
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(limit);
+        if (error) throw error;
+        return data ?? [];
+      },
+      ["api-games-list"],
+      { revalidate: 30, tags: [CACHE_TAGS.games] },
+    );
 
-    if (error) {
-      throw error;
-    }
-
-    return NextResponse.json({ games: data ?? [] });
+    return NextResponse.json({ games: await getGames(limit) });
   } catch (error) {
     console.error("Error fetching games:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -109,6 +116,22 @@ export async function POST(request: Request) {
 
     if (error) {
       throw error;
+    }
+
+    revalidateTag(CACHE_TAGS.games, "max");
+    if (insertPayload.status === "verified") {
+      revalidateTag(CACHE_TAGS.leaderboard, "max");
+      revalidateTag(CACHE_TAGS.streaks, "max");
+      revalidateTag(CACHE_TAGS.ratingHistory, "max");
+
+      const is2v2 = insertPayload.format === "8-ball-2v2";
+      const participants = [
+        ...parseTeam(insertPayload.player_a, is2v2),
+        ...parseTeam(insertPayload.player_b, is2v2),
+      ];
+      for (const name of new Set(participants)) {
+        revalidateTag(profileTag(name), "max");
+      }
     }
 
     const response = NextResponse.json({ success: true, id: data.id });

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unstable_cache } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
@@ -31,43 +33,53 @@ export async function GET(request: Request) {
     }
 
     const limit = Math.min(parsedLimit, MAX_LIMIT);
-    const supabase = createAdminClient();
+    const getRatingHistory = unstable_cache(
+      async (
+        requestedLimit: number,
+        requestedUsername: string | null,
+        requestedProfileId: string | null,
+        requestedGameId: string | null,
+        requestedGameIds: string[],
+      ) => {
+        const supabase = createAdminClient();
+        let query = supabase
+          .from("game_rating_changes")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(requestedLimit);
 
-    let query = supabase
-      .from("game_rating_changes")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
+        if (requestedUsername) query = query.eq("username", requestedUsername);
+        if (requestedProfileId) query = query.eq("profile_id", requestedProfileId);
+        if (requestedGameId) query = query.eq("game_id", requestedGameId);
+        if (requestedGameIds.length > 0) query = query.in("game_id", requestedGameIds);
 
-    if (username) query = query.eq("username", username);
-    if (profileId) query = query.eq("profile_id", profileId);
-    if (gameId) query = query.eq("game_id", gameId);
-    if (gameIds.length > 0) query = query.in("game_id", gameIds);
+        const { data, error } = await query;
+        if (error) throw error;
 
-    const { data, error } = await query;
+        return (data ?? []).map((row) => ({
+          id: row.id,
+          gameId: row.game_id,
+          profileId: row.profile_id,
+          username: row.username,
+          format: row.format,
+          result: row.result,
+          preRating: toNumber(row.pre_rating),
+          postRating: toNumber(row.post_rating),
+          ratingDelta: toNumber(row.rating_delta),
+          preRd: toNumber(row.pre_rd),
+          postRd: toNumber(row.post_rd),
+          rdDelta: toNumber(row.rd_delta),
+          preVol: toNumber(row.pre_vol),
+          postVol: toNumber(row.post_vol),
+          volDelta: toNumber(row.vol_delta),
+          createdAt: row.created_at,
+        }));
+      },
+      ["api-rating-history"],
+      { revalidate: 60, tags: [CACHE_TAGS.ratingHistory] },
+    );
 
-    if (error) {
-      throw error;
-    }
-
-    const changes = (data ?? []).map((row) => ({
-      id: row.id,
-      gameId: row.game_id,
-      profileId: row.profile_id,
-      username: row.username,
-      format: row.format,
-      result: row.result,
-      preRating: toNumber(row.pre_rating),
-      postRating: toNumber(row.post_rating),
-      ratingDelta: toNumber(row.rating_delta),
-      preRd: toNumber(row.pre_rd),
-      postRd: toNumber(row.post_rd),
-      rdDelta: toNumber(row.rd_delta),
-      preVol: toNumber(row.pre_vol),
-      postVol: toNumber(row.post_vol),
-      volDelta: toNumber(row.vol_delta),
-      createdAt: row.created_at,
-    }));
+    const changes = await getRatingHistory(limit, username, profileId, gameId, gameIds);
 
     return NextResponse.json({ changes });
   } catch (error) {

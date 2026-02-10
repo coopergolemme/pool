@@ -1,6 +1,6 @@
 import { supabase } from "./supabase/client";
 
-export async function getConfig(key: string, defaultValue: any = null) {
+export async function getConfig<T>(key: string, defaultValue: T): Promise<T> {
   if (!supabase) return defaultValue;
 
   const { data, error } = await supabase
@@ -10,5 +10,5 @@ export async function getConfig(key: string, defaultValue: any = null) {
     .single();
 
   if (error || !data) return defaultValue;
-  return data.value;
+  return (data.value as T) ?? defaultValue;
 }
