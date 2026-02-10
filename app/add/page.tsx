@@ -4,8 +4,7 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase/client";
 import { GameForm } from "../../components/GameForm";
-import { computeRatings, type Game } from "../../lib/glicko";
-import { mapGame } from "../../lib/types";
+import { type Game } from "../../lib/glicko";
 import { AuthForm, type AuthFormData } from "../../components/AuthForm";
 import { getConfig } from "../../lib/config";
 
@@ -134,7 +133,7 @@ export default function AddGamePage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!supabase || !userId) return;
+    if (!userId) return;
 
     setSaving(true);
     setError(null);
@@ -163,18 +162,21 @@ export default function AddGamePage() {
       player_b: teamB,
       winner: form.winner,
       score: form.score || "",
-      user_id: userId,
       opponent_id: opponent.id,
       opponent_email: opponent.email,
       status: requireVerification ? "pending" : "verified",
-      submitted_by: userId,
       balls_remaining: form.ballsRemaining ? parseInt(form.ballsRemaining) : null,
     };
 
-    const { error: insertError } = await supabase.from("games").insert(payload);
+    const response = await fetch("/api/games", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
 
-    if (insertError) {
-      setError(insertError.message);
+    if (!response.ok) {
+      setError(data.error || "Failed to create game");
     } else {
       const msg = requireVerification
         ? "Game submitted! Waiting for opponent verification."
@@ -196,37 +198,8 @@ export default function AddGamePage() {
           })
         }).catch(err => console.error("Failed to send push notification:", err));
       }
-
-      // Update ratings in background
-      updateRatings();
     }
     setSaving(false);
-  };
-
-  const updateRatings = async () => {
-    if (!supabase) return;
-    // Re-fetch all games to compute fresh ratings
-    const { data: allGames } = await supabase.from("games").select("*");
-    if (allGames) {
-      const mapped = allGames.map(mapGame);
-      const ratings = computeRatings(mapped);
-      const updates = Array.from(ratings.entries()).map(([player, record]) => {
-        const profile = profiles.find((p) => p.username === player);
-        if (!profile) return null;
-        return {
-          id: profile.id,
-          rating: record.rating,
-          rd: record.rd,
-          vol: record.vol,
-          streak: record.streak,
-        };
-      }).filter(Boolean);
-
-      if (updates.length > 0) {
-        const { error } = await supabase.from("profiles").upsert(updates);
-        if (error) console.error("Error updating ratings/streaks", error);
-      }
-    }
   };
 
   return (

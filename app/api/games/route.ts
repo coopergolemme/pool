@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 400;
@@ -35,6 +36,88 @@ export async function GET(request: Request) {
     return NextResponse.json({ games: data ?? [] });
   } catch (error) {
     console.error("Error fetching games:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+type CreateGamePayload = {
+  date?: string;
+  table_name?: string;
+  format?: "8-ball" | "8-ball-2v2";
+  race_to?: number;
+  player_a?: string;
+  player_b?: string;
+  winner?: string;
+  score?: string;
+  opponent_id?: string | null;
+  opponent_email?: string | null;
+  status?: "pending" | "verified";
+  balls_remaining?: number | null;
+};
+
+export async function POST(request: Request) {
+  try {
+    const { user, refreshed } = await getAuthUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as CreateGamePayload;
+    const {
+      date,
+      table_name,
+      format,
+      race_to,
+      player_a,
+      player_b,
+      winner,
+      score,
+      opponent_id,
+      opponent_email,
+      status,
+      balls_remaining,
+    } = body;
+
+    if (!player_a || !player_b || !winner) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const supabase = createAdminClient();
+    const insertPayload = {
+      date: date || new Date().toISOString().slice(0, 10),
+      table_name: table_name || "Table 1",
+      format: format || "8-ball",
+      race_to: race_to || 1,
+      player_a,
+      player_b,
+      winner,
+      score: score || "",
+      user_id: user.id,
+      opponent_id: opponent_id || null,
+      opponent_email: opponent_email || null,
+      status: status || "pending",
+      submitted_by: user.id,
+      balls_remaining: balls_remaining ?? null,
+    };
+
+    const { data, error } = await supabase
+      .from("games")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const response = NextResponse.json({ success: true, id: data.id });
+    if (refreshed) {
+      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
+    }
+    return response;
+  } catch (error) {
+    console.error("Error creating game:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
