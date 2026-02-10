@@ -25,18 +25,23 @@ model audit_log_entries {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model flow_state {
-  id                     String                @id @db.Uuid
-  user_id                String?               @db.Uuid
-  auth_code              String
-  code_challenge_method  code_challenge_method
-  code_challenge         String
+  id                     String                 @id @db.Uuid
+  user_id                String?                @db.Uuid
+  auth_code              String?
+  code_challenge_method  code_challenge_method?
+  code_challenge         String?
   provider_type          String
   provider_access_token  String?
   provider_refresh_token String?
-  created_at             DateTime?             @db.Timestamptz(6)
-  updated_at             DateTime?             @db.Timestamptz(6)
+  created_at             DateTime?              @db.Timestamptz(6)
+  updated_at             DateTime?              @db.Timestamptz(6)
   authentication_method  String
-  auth_code_issued_at    DateTime?             @db.Timestamptz(6)
+  auth_code_issued_at    DateTime?              @db.Timestamptz(6)
+  invite_token           String?
+  referrer               String?
+  oauth_client_state_id  String?                @db.Uuid
+  linking_target_id      String?                @db.Uuid
+  email_optional         Boolean                @default(false)
   saml_relay_states      saml_relay_states[]
 
   @@index([created_at(sort: Desc)])
@@ -170,21 +175,22 @@ model oauth_client_states {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model oauth_clients {
-  id                   String                  @id @db.Uuid
-  client_secret_hash   String?
-  registration_type    oauth_registration_type
-  redirect_uris        String
-  grant_types          String
-  client_name          String?
-  client_uri           String?
-  logo_uri             String?
-  created_at           DateTime                @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime                @default(now()) @db.Timestamptz(6)
-  deleted_at           DateTime?               @db.Timestamptz(6)
-  client_type          oauth_client_type       @default(confidential)
-  oauth_authorizations oauth_authorizations[]
-  oauth_consents       oauth_consents[]
-  sessions             sessions[]
+  id                         String                  @id @db.Uuid
+  client_secret_hash         String?
+  registration_type          oauth_registration_type
+  redirect_uris              String
+  grant_types                String
+  client_name                String?
+  client_uri                 String?
+  logo_uri                   String?
+  created_at                 DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                @default(now()) @db.Timestamptz(6)
+  deleted_at                 DateTime?               @db.Timestamptz(6)
+  client_type                oauth_client_type       @default(confidential)
+  token_endpoint_auth_method String
+  oauth_authorizations       oauth_authorizations[]
+  oauth_consents             oauth_consents[]
+  sessions                   sessions[]
 
   @@index([deleted_at])
   @@schema("auth")
@@ -426,8 +432,8 @@ model config {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model games {
-  id                              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date                            DateTime @db.Date
+  id                              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date                            DateTime              @db.Date
   table_name                      String
   format                          String
   race_to                         Int
@@ -435,34 +441,36 @@ model games {
   player_b                        String
   winner                          String
   score                           String?
-  created_at                      DateTime @default(now()) @db.Timestamptz(6)
-  user_id                         String?  @db.Uuid
-  opponent_id                     String?  @db.Uuid
+  created_at                      DateTime              @default(now()) @db.Timestamptz(6)
+  user_id                         String?               @db.Uuid
+  opponent_id                     String?               @db.Uuid
   opponent_email                  String?
-  status                          String?  @default("verified")
-  submitted_by                    String?  @db.Uuid
+  status                          String?               @default("verified")
+  submitted_by                    String?               @db.Uuid
   balls_remaining                 Int?
-  users_games_opponent_idTousers  users?   @relation("games_opponent_idTousers", fields: [opponent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users_games_submitted_byTousers users?   @relation("games_submitted_byTousers", fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users_games_user_idTousers      users?   @relation("games_user_idTousers", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  game_rating_changes             game_rating_changes[]
+  users_games_opponent_idTousers  users?                @relation("games_opponent_idTousers", fields: [opponent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_games_submitted_byTousers users?                @relation("games_submitted_byTousers", fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_games_user_idTousers      users?                @relation("games_user_idTousers", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("public")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model profiles {
-  id         String   @id @db.Uuid
-  email      String   @unique
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  username   String?  @unique
-  rating     Decimal? @default(1500) @db.Decimal
-  rd         Decimal? @default(350) @db.Decimal
-  vol        Decimal? @default(0.06) @db.Decimal
-  streak     Int?     @default(0)
-  losses     Int?     @default(0)
-  wins       Int?     @default(0)
-  role       Role     @default(USER)
-  users      users    @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                  String                @id @db.Uuid
+  email               String                @unique
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  username            String?               @unique
+  rating              Decimal?              @default(1500) @db.Decimal
+  rd                  Decimal?              @default(350) @db.Decimal
+  vol                 Decimal?              @default(0.06) @db.Decimal
+  streak              Int?                  @default(0)
+  losses              Int?                  @default(0)
+  wins                Int?                  @default(0)
+  role                Role                  @default(USER)
+  game_rating_changes game_rating_changes[]
+  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("public")
 }
@@ -475,6 +483,35 @@ model push_subscriptions {
   created_at   DateTime? @default(now()) @db.Timestamptz(6)
   users        users?    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model game_rating_changes {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  game_id      String   @db.Uuid
+  profile_id   String   @db.Uuid
+  username     String
+  format       String
+  result       String
+  pre_rating   Decimal  @db.Decimal
+  post_rating  Decimal  @db.Decimal
+  rating_delta Decimal? @default(dbgenerated("(post_rating - pre_rating)")) @db.Decimal
+  pre_rd       Decimal  @db.Decimal
+  post_rd      Decimal  @db.Decimal
+  rd_delta     Decimal? @default(dbgenerated("(post_rd - pre_rd)")) @db.Decimal
+  pre_vol      Decimal  @db.Decimal
+  post_vol     Decimal  @db.Decimal
+  vol_delta    Decimal? @default(dbgenerated("(post_vol - pre_vol)")) @db.Decimal
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  games        games    @relation(fields: [game_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles     profiles @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([game_id, profile_id], map: "game_rating_changes_game_profile_unique")
+  @@index([game_id], map: "game_rating_changes_game_idx")
+  @@index([profile_id, created_at(sort: Desc)], map: "game_rating_changes_profile_created_idx")
+  @@index([username, created_at(sort: Desc)], map: "game_rating_changes_username_created_idx")
   @@schema("public")
 }
 

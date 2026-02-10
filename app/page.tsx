@@ -58,12 +58,12 @@ export default function Home() {
       if (!supabase) return;
       setLoading(true);
 
-      const { data: gamesData } = await supabase
-        .from("games")
-        .select("*")
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .order("created_at", { ascending: false });
+      const gamesRes = await fetch("/api/games?limit=500", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const gamesPayload = await gamesRes.json();
+      const gamesData = gamesRes.ok ? gamesPayload.games : null;
 
       if (!supabase) return;
 
