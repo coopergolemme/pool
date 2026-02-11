@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { GameForm } from "../../components/GameForm";
 import { type Game } from "../../lib/glicko";
 import { AuthForm, type AuthFormData } from "../../components/AuthForm";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 interface Profile {
   id: string;
@@ -22,6 +23,7 @@ export default function AddGamePage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requireVerification, setRequireVerification] = useState(true);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const [form, setForm] = useState({
     date: "",
@@ -40,53 +42,72 @@ export default function AddGamePage() {
     const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
     const data = await res.json();
     if (!res.ok || !data.user) {
-      setUserId(null);
-      return;
+      return { id: null as string | null };
     }
-    setUserId(data.user.id ?? null);
+    return { id: data.user.id ?? null };
+  };
+
+  const fetchRequireVerificationConfig = async () => {
+    const res = await fetch("/api/config?key=require_verification", {
+      method: "GET",
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (res.ok && typeof data.value === "boolean") {
+      return data.value;
+    }
+    return true;
+  };
+
+  const fetchProfiles = async () => {
+    const res = await fetch("/api/profiles", {
+      method: "GET",
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (res.ok && Array.isArray(data.profiles)) {
+      return data.profiles as Profile[];
+    }
+    return [];
+  };
+
+  const applySessionAndProfiles = (sessionUserId: string | null, profileRows: Profile[]) => {
+    setUserId(sessionUserId);
+    setProfiles(profileRows);
+
+    if (sessionUserId) {
+      const userProfile = profileRows.find((p) => p.id === sessionUserId);
+      if (userProfile) {
+        setForm((prev) => ({ ...prev, playerA: userProfile.username }));
+      }
+    }
   };
 
   useEffect(() => {
-    const fetchConfig = async () => {
-      const res = await fetch("/api/config?key=require_verification", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (res.ok && typeof data.value === "boolean") {
-        setRequireVerification(data.value);
-      } else {
-        setRequireVerification(true);
+    let canceled = false;
+
+    const bootstrap = async () => {
+      setIsBootstrapping(true);
+      try {
+        const [session, configValue, profileRows] = await Promise.all([
+          fetchSession(),
+          fetchRequireVerificationConfig(),
+          fetchProfiles(),
+        ]);
+
+        if (canceled) return;
+        setRequireVerification(configValue);
+        applySessionAndProfiles(session.id, profileRows);
+      } finally {
+        if (!canceled) setIsBootstrapping(false);
       }
     };
 
-    void fetchConfig();
-    setTimeout(() => {
-      void fetchSession();
-    }, 0);
-
-    const loadProfiles = async () => {
-      const res = await fetch("/api/profiles", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.profiles)) {
-        setProfiles(data.profiles);
-        // Auto-select signed-in user
-        if (userId) {
-          const userProfile = data.profiles.find((p: Profile) => p.id === userId);
-          if (userProfile) {
-            setForm(prev => ({ ...prev, playerA: userProfile.username }));
-          }
-        }
-      } else {
-        setProfiles([]);
-      }
+    void bootstrap();
+    return () => {
+      canceled = true;
     };
-
-    loadProfiles();
-  }, [userId]);
+  }, []);
 
   const handleSignIn = async (authForm: AuthFormData) => {
     setAuthLoading(true);
@@ -104,7 +125,8 @@ export default function AddGamePage() {
       if (!res.ok) {
         setError(data.error ?? "Sign in failed");
       } else {
-        await fetchSession();
+        const [session, profileRows] = await Promise.all([fetchSession(), fetchProfiles()]);
+        applySessionAndProfiles(session.id, profileRows);
       }
     } catch {
       setError("Sign in failed");
@@ -133,7 +155,8 @@ export default function AddGamePage() {
       } else if (data.needsEmailConfirmation) {
         setError("Check your email to confirm your account before signing in.");
       } else {
-        await fetchSession();
+        const [session, profileRows] = await Promise.all([fetchSession(), fetchProfiles()]);
+        applySessionAndProfiles(session.id, profileRows);
       }
     } catch {
       setError("Sign up failed");
@@ -149,7 +172,10 @@ export default function AddGamePage() {
     setError(null);
 
     // Basic Validation
-    if (!form.playerA || !form.playerB || !form.winner) return;
+    if (!form.playerA || !form.playerB || !form.winner) {
+      setSaving(false);
+      return;
+    }
 
     const opponentName = form.playerB;
     const opponent = profiles.find(p => p.username === opponentName);
@@ -221,7 +247,15 @@ export default function AddGamePage() {
         <p className="mt-2 text-white/50">Record a new match result</p>
       </div>
 
-      {!userId ? (
+      {isBootstrapping ? (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[320px]">
+          <Skeleton className="h-8 w-1/2 mb-4" />
+          <Skeleton className="h-10 w-full mb-3" />
+          <Skeleton className="h-10 w-full mb-3" />
+          <Skeleton className="h-10 w-2/3 mb-8" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+      ) : !userId ? (
         <AuthForm
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}

@@ -13,6 +13,7 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [games, setGames] = useState<Game[]>([]);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [runningBackfill, setRunningBackfill] = useState(false);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -73,6 +74,28 @@ export default function AdminPage() {
         }
     };
 
+    const handleRunBackfill = async () => {
+        try {
+            setRunningBackfill(true);
+            const res = await fetch("/api/cron/backfill", {
+                method: "GET",
+                cache: "no-store",
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to run backfill");
+            }
+
+            toast.success(data.message || "Backfill completed successfully.");
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : "Unknown error";
+            toast.error("Backfill failed: " + msg);
+        } finally {
+            setRunningBackfill(false);
+        }
+    };
+
     if (loading) {
         return (
             <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
@@ -107,8 +130,20 @@ export default function AdminPage() {
 
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-                <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
-                    {games.length} Pending
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            haptic.light();
+                            void handleRunBackfill();
+                        }}
+                        disabled={runningBackfill}
+                        className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-cyan-200 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {runningBackfill ? "Running..." : "Run Backfill"}
+                    </button>
+                    <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
+                        {games.length} Pending
+                    </div>
                 </div>
             </div>
 

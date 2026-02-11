@@ -49,81 +49,105 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const fetchSession = async () => {
     const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
     const data = await res.json();
     if (!res.ok || !data.user) {
-      setUserEmail(null);
-      setUserId(null);
-      setUserName(null);
+      return { email: null, id: null, username: null };
+    }
+
+    return {
+      email: data.user.email ?? null,
+      id: data.user.id ?? null,
+      username: data.profile?.username ?? null,
+    };
+  };
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
       setIsCheckingSession(false);
       return;
     }
 
-    setUserEmail(data.user.email ?? null);
-    setUserId(data.user.id ?? null);
-    setUserName(data.profile?.username ?? null);
-    setIsCheckingSession(false);
-  };
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    getConfig("require_verification", true).then(setRequireVerification);
+    let canceled = false;
 
     const fetchData = async () => {
-
-      if (!supabase) return;
-      setLoading(true);
-
-      const gamesRes = await fetch("/api/games?limit=500", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const gamesPayload = await gamesRes.json();
-      const gamesData = gamesRes.ok ? gamesPayload.games : null;
-      const recentGameIds: string[] = (gamesData ?? []).slice(0, 20).map((g: { id: string }) => g.id);
-
-      let ratingHistoryData: RatingChange[] | null = [];
-      if (recentGameIds.length > 0) {
-        const ratingHistoryRes = await fetch(
-          `/api/rating-history?limit=2000&gameIds=${encodeURIComponent(recentGameIds.join(","))}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          },
-        );
-        const ratingHistoryPayload = await ratingHistoryRes.json();
-        ratingHistoryData = ratingHistoryRes.ok ? ratingHistoryPayload.changes : null;
+      if (refreshKey === 0) {
+        setLoading(true);
       }
 
-      const streaksRes = await fetch("/api/streaks?min=3&limit=20", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const streaksPayload = await streaksRes.json();
-      const streaksData = streaksRes.ok ? (streaksPayload.leaders as StreakLeader[]) : [];
+      try {
+        const [session, requireVerificationValue] = await Promise.all([
+          fetchSession(),
+          getConfig("require_verification", true),
+        ]);
 
-      const userStatsRes = await fetch("/api/me/stats", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const userStatsPayload = await userStatsRes.json();
-      const userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
+        if (canceled) return;
 
-      if (gamesData) setGames(gamesData.map(mapGame));
-      if (ratingHistoryData) setRatingChanges(ratingHistoryData);
-      setStreakLeaders(streaksData);
-      setUserStats(userStatsData);
+        setUserEmail(session.email);
+        setUserId(session.id);
+        setUserName(session.username);
+        setIsCheckingSession(false);
+        setRequireVerification(requireVerificationValue);
 
-      setLoading(false);
+        const gamesRes = await fetch("/api/games?limit=500", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const gamesPayload = await gamesRes.json();
+        const gamesData = gamesRes.ok ? gamesPayload.games : null;
+        const recentGameIds: string[] = (gamesData ?? []).slice(0, 20).map((g: { id: string }) => g.id);
+
+        let ratingHistoryData: RatingChange[] | null = [];
+        if (recentGameIds.length > 0) {
+          const ratingHistoryRes = await fetch(
+            `/api/rating-history?limit=2000&gameIds=${encodeURIComponent(recentGameIds.join(","))}`,
+            {
+              method: "GET",
+              cache: "no-store",
+            },
+          );
+          const ratingHistoryPayload = await ratingHistoryRes.json();
+          ratingHistoryData = ratingHistoryRes.ok ? ratingHistoryPayload.changes : null;
+        }
+
+        const streaksRes = await fetch("/api/streaks?min=3&limit=20", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const streaksPayload = await streaksRes.json();
+        const streaksData = streaksRes.ok ? (streaksPayload.leaders as StreakLeader[]) : [];
+
+        let userStatsData: CurrentUserStats | null = null;
+        if (session.id) {
+          const userStatsRes = await fetch("/api/me/stats", {
+            method: "GET",
+            cache: "no-store",
+          });
+          const userStatsPayload = await userStatsRes.json();
+          userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
+        }
+
+        if (canceled) return;
+
+        if (gamesData) setGames(gamesData.map(mapGame));
+        if (ratingHistoryData) setRatingChanges(ratingHistoryData);
+        setStreakLeaders(streaksData);
+        setUserStats(userStatsData);
+      } finally {
+        if (canceled) return;
+        setLoading(false);
+        setHasLoadedOnce(true);
+      }
     };
 
-    fetchData();
-    setTimeout(() => {
-      void fetchSession();
-    }, 0);
+    void fetchData();
+    return () => {
+      canceled = true;
+    };
   }, [refreshKey]);
 
   const handleSignIn = async (authForm: AuthFormData) => {
@@ -142,7 +166,11 @@ export default function Home() {
       if (!res.ok) {
         setError(data.error ?? "Sign in failed");
       } else {
-        await fetchSession();
+        const session = await fetchSession();
+        setUserEmail(session.email);
+        setUserId(session.id);
+        setUserName(session.username);
+        setIsCheckingSession(false);
         setRefreshKey((k) => k + 1);
       }
     } catch {
@@ -170,7 +198,11 @@ export default function Home() {
       } else if (data.needsEmailConfirmation) {
         setError("Check your email to confirm your account before signing in.");
       } else {
-        await fetchSession();
+        const session = await fetchSession();
+        setUserEmail(session.email);
+        setUserId(session.id);
+        setUserName(session.username);
+        setIsCheckingSession(false);
         setRefreshKey((k) => k + 1);
       }
     } catch {
@@ -190,6 +222,9 @@ export default function Home() {
   };
 
   const verifiedGames = useMemo(() => games.filter(g => g.status === "verified"), [games]);
+  const showInitialSkeleton = !hasLoadedOnce && (loading || isCheckingSession);
+  const showSessionSkeleton = showInitialSkeleton || isCheckingSession || (userId && !userName);
+  const showTopLoading = showInitialSkeleton;
 
   const ratingHistory = useMemo<RatingHistory>(() => {
     return ratingChanges.reduce<RatingHistory>((acc, change) => {
@@ -212,14 +247,14 @@ export default function Home() {
       <div className="space-y-8">
         <PushManager userId={userId} />
         {/* Active Streaks */}
-        {userId && (
-          <StreakLeaders leaders={streakLeaders} loading={loading} />
+        {(showInitialSkeleton || userId) && (
+          <StreakLeaders leaders={streakLeaders} loading={showTopLoading} />
         )}
 
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             {/* User Stats or Sign In */}
-            {isCheckingSession || (userId && !userName) ? (
+            {showSessionSkeleton ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
                 <Skeleton className="h-8 w-1/2 mb-4" />
                 <Skeleton className="h-10 w-full mb-2" />
@@ -246,13 +281,11 @@ export default function Home() {
           </div>
 
           {/* Recent Games Feed */}
-          {
-            userId &&
-
+          {(showInitialSkeleton || userId) && (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6 h-fit">
-              <RecentGames games={verifiedGames.slice(0, 20)} loading={loading} ratingHistory={ratingHistory} />
+              <RecentGames games={verifiedGames.slice(0, 20)} loading={showTopLoading} ratingHistory={ratingHistory} />
             </div>
-          }
+          )}
 
           {/* Signout button */}
           {userEmail && userName && (
