@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { mapGame, type DbGame } from "@/lib/types";
 import { parseTeam, type RatingHistory } from "@/lib/glicko";
 import { unstable_cache } from "next/cache";
-import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
+import { profileTag } from "@/lib/cache-tags";
 
 const MAX_GAMES = 1000;
 
@@ -94,7 +94,7 @@ export async function GET(_request: Request, context: RouteContext) {
       ["api-profile-page-data"],
       {
         revalidate: 60,
-        tags: [CACHE_TAGS.games, CACHE_TAGS.ratingHistory, CACHE_TAGS.profiles, profileTag(username)],
+        tags: [profileTag(username)],
       },
     );
 

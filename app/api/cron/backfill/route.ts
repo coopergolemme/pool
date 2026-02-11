@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runRatingsBackfill } from "@/lib/backfill-ratings";
 import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
 
 export const dynamic = 'force-dynamic'; // Ensure this function is not cached
 
@@ -40,6 +42,14 @@ export async function GET(request: Request) {
   try {
     console.log("Starting nightly rating + rating history backfill...");
     const result = await runRatingsBackfill(supabase);
+    revalidateTag(CACHE_TAGS.games, "max");
+    revalidateTag(CACHE_TAGS.leaderboard, "max");
+    revalidateTag(CACHE_TAGS.streaks, "max");
+    revalidateTag(CACHE_TAGS.ratingHistory, "max");
+    revalidateTag(CACHE_TAGS.profiles, "max");
+    for (const name of new Set(result.updatedUsernames)) {
+      revalidateTag(profileTag(name), "max");
+    }
 
     const response = NextResponse.json({
       success: true,

@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapGame, type DbGame } from "@/lib/types";
 
+const PRIVATE_NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+} as const;
+
 export async function GET(request: Request) {
   try {
     const { user, refreshed } = await getAuthUserFromRequest(request);
@@ -11,7 +15,10 @@ export async function GET(request: Request) {
     const adminMode = searchParams.get("scope") === "admin";
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
+      );
     }
 
     const supabase = createAdminClient();
@@ -33,7 +40,10 @@ export async function GET(request: Request) {
       }
 
       if (profile?.role !== "ADMIN") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json(
+          { error: "Forbidden" },
+          { status: 403, headers: PRIVATE_NO_STORE_HEADERS },
+        );
       }
     } else {
       query = query.eq("opponent_id", userId).neq("submitted_by", userId);
@@ -46,7 +56,7 @@ export async function GET(request: Request) {
     }
 
     const games = (data ?? []).map((row) => mapGame(row as DbGame));
-    const response = NextResponse.json({ games });
+    const response = NextResponse.json({ games }, { headers: PRIVATE_NO_STORE_HEADERS });
     if (refreshed) {
       setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
     }

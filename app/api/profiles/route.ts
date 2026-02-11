@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 
+const PRIVATE_NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+} as const;
+
 export async function GET(request: Request) {
   try {
     const { user, refreshed } = await getAuthUserFromRequest(request);
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
+      );
     }
 
     const supabase = createAdminClient();
@@ -20,7 +27,10 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    const response = NextResponse.json({ profiles: data ?? [] });
+    const response = NextResponse.json(
+      { profiles: data ?? [] },
+      { headers: PRIVATE_NO_STORE_HEADERS },
+    );
     if (refreshed) {
       setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
     }

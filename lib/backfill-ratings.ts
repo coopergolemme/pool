@@ -49,6 +49,7 @@ export type BackfillResult = {
   gamesProcessed: number;
   profilesUpdated: number;
   ratingChangesUpserted: number;
+  updatedUsernames: string[];
 };
 
 const defaultPlayer = (): GlickoPlayer => ({
@@ -227,5 +228,6 @@ export async function runRatingsBackfill(
     gamesProcessed: games.length,
     profilesUpdated: profileUpdates.length,
     ratingChangesUpserted: ratingChanges.length,
+    updatedUsernames: Array.from(players.keys()),
   };
 }

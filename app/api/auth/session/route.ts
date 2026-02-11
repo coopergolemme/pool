@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUserFromRequest, setAuthCookies, clearAuthCookies } from "@/lib/supabase/server-auth";
 
+const PRIVATE_NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+} as const;
+
 export async function GET(request: Request) {
   try {
     const { user, refreshed } = await getAuthUserFromRequest(request);
 
     if (!user) {
-      const response = NextResponse.json({ user: null });
+      const response = NextResponse.json({ user: null }, { headers: PRIVATE_NO_STORE_HEADERS });
       clearAuthCookies(response);
       return response;
     }
@@ -25,7 +29,7 @@ export async function GET(request: Request) {
         email: user.email ?? null,
       },
       profile: profile ?? null,
-    });
+    }, { headers: PRIVATE_NO_STORE_HEADERS });
 
     if (refreshed) {
       setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);

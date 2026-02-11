@@ -62,7 +62,7 @@ export default function ProfilePage() {
 
       const [authRes, profileRes] = await Promise.all([
         fetch("/api/auth/session", { method: "GET", cache: "no-store" }),
-        fetch(`/api/profile/${encodeURIComponent(username)}`, { method: "GET", cache: "no-store" }),
+        fetch(`/api/profile/${encodeURIComponent(username)}`, { method: "GET" }),
       ]);
 
       const authData = await authRes.json();

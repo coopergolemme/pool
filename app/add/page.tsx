@@ -62,7 +62,6 @@ export default function AddGamePage() {
   const fetchProfiles = async () => {
     const res = await fetch("/api/profiles", {
       method: "GET",
-      cache: "no-store",
     });
     const data = await res.json();
     if (res.ok && Array.isArray(data.profiles)) {

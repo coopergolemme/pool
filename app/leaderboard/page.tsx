@@ -23,8 +23,7 @@ export default function LeaderboardPage() {
     const fetchLeaderboard = async () => {
       setLoading(true);
       const res = await fetch("/api/leaderboard?limit=200", {
-        method: "GET",
-        cache: "no-store",
+        method: "GET"
       });
       const data = await res.json();
       if (res.ok && Array.isArray(data.leaderboard)) {

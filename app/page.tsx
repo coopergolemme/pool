@@ -95,7 +95,6 @@ export default function Home() {
 
         const gamesRes = await fetch("/api/games?limit=500", {
           method: "GET",
-          cache: "no-store",
         });
         const gamesPayload = await gamesRes.json();
         const gamesData = gamesRes.ok ? gamesPayload.games : null;
@@ -107,7 +106,6 @@ export default function Home() {
             `/api/rating-history?limit=2000&gameIds=${encodeURIComponent(recentGameIds.join(","))}`,
             {
               method: "GET",
-              cache: "no-store",
             },
           );
           const ratingHistoryPayload = await ratingHistoryRes.json();
@@ -116,7 +114,6 @@ export default function Home() {
 
         const streaksRes = await fetch("/api/streaks?min=3&limit=20", {
           method: "GET",
-          cache: "no-store",
         });
         const streaksPayload = await streaksRes.json();
         const streaksData = streaksRes.ok ? (streaksPayload.leaders as StreakLeader[]) : [];
@@ -125,7 +122,6 @@ export default function Home() {
         if (session.id) {
           const userStatsRes = await fetch("/api/me/stats", {
             method: "GET",
-            cache: "no-store",
           });
           const userStatsPayload = await userStatsRes.json();
           userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
