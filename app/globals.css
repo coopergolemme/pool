@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant standalone (@media (display-mode: standalone));
+
 :root {
   --background: #0c1412;
   --foreground: #f3f4f1;

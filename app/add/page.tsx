@@ -2,12 +2,10 @@
 
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase/client";
 import { GameForm } from "../../components/GameForm";
-import { computeRatings, type Game } from "../../lib/glicko";
-import { mapGame } from "../../lib/types";
+import { type Game } from "../../lib/glicko";
 import { AuthForm, type AuthFormData } from "../../components/AuthForm";
-import { getConfig } from "../../lib/config";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 interface Profile {
   id: string;
@@ -25,6 +23,7 @@ export default function AddGamePage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requireVerification, setRequireVerification] = useState(true);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const [form, setForm] = useState({
     date: "",
@@ -39,86 +38,143 @@ export default function AddGamePage() {
     ballsRemaining: "3",
   });
 
+  const fetchSession = async () => {
+    const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || !data.user) {
+      return { id: null as string | null };
+    }
+    return { id: data.user.id ?? null };
+  };
+
+  const fetchRequireVerificationConfig = async () => {
+    const res = await fetch("/api/config?key=require_verification", {
+      method: "GET",
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (res.ok && typeof data.value === "boolean") {
+      return data.value;
+    }
+    return true;
+  };
+
+  const fetchProfiles = async () => {
+    const res = await fetch("/api/profiles", {
+      method: "GET",
+    });
+    const data = await res.json();
+    if (res.ok && Array.isArray(data.profiles)) {
+      return data.profiles as Profile[];
+    }
+    return [];
+  };
+
+  const applySessionAndProfiles = (sessionUserId: string | null, profileRows: Profile[]) => {
+    setUserId(sessionUserId);
+    setProfiles(profileRows);
+
+    if (sessionUserId) {
+      const userProfile = profileRows.find((p) => p.id === sessionUserId);
+      if (userProfile) {
+        setForm((prev) => ({ ...prev, playerA: userProfile.username }));
+      }
+    }
+  };
+
   useEffect(() => {
-    if (!supabase) return;
+    let canceled = false;
 
-    getConfig("require_verification", true).then(setRequireVerification);
+    const bootstrap = async () => {
+      setIsBootstrapping(true);
+      try {
+        const [session, configValue, profileRows] = await Promise.all([
+          fetchSession(),
+          fetchRequireVerificationConfig(),
+          fetchProfiles(),
+        ]);
 
-    supabase.auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user.id ?? null);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user.id ?? null);
-    });
-
-    const loadProfiles = async () => {
-      if (!supabase) return;
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, username, email")
-        .order("username");
-      if (data) {
-        setProfiles(data);
-        // Auto-select signed-in user
-        if (userId) {
-          const userProfile = data.find((p) => p.id === userId);
-          if (userProfile) {
-            setForm(prev => ({ ...prev, playerA: userProfile.username }));
-          }
-        }
+        if (canceled) return;
+        setRequireVerification(configValue);
+        applySessionAndProfiles(session.id, profileRows);
+      } finally {
+        if (!canceled) setIsBootstrapping(false);
       }
     };
 
-    loadProfiles();
-
+    void bootstrap();
     return () => {
-      authListener.subscription.unsubscribe();
+      canceled = true;
     };
-  }, [userId]);
+  }, []);
 
   const handleSignIn = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     setAuthLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-    if (error) setError(error.message);
+    setError(null);
+    try {
+      const res = await fetch("/api/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign in failed");
+      } else {
+        const [session, profileRows] = await Promise.all([fetchSession(), fetchProfiles()]);
+        applySessionAndProfiles(session.id, profileRows);
+      }
+    } catch {
+      setError("Sign in failed");
+    }
     setAuthLoading(false);
   };
 
   const handleSignUp = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     if (!authForm.username) return setError("Username required");
 
     setAuthLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-
-    if (error) {
-      setError(error.message);
-    } else if (data.user?.id) {
-      await supabase.from("profiles").upsert(
-        { id: data.user.id, email: authForm.email, username: authForm.username },
-        { onConflict: "id" }
-      );
+    setError(null);
+    try {
+      const res = await fetch("/api/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+          username: authForm.username,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign up failed");
+      } else if (data.needsEmailConfirmation) {
+        setError("Check your email to confirm your account before signing in.");
+      } else {
+        const [session, profileRows] = await Promise.all([fetchSession(), fetchProfiles()]);
+        applySessionAndProfiles(session.id, profileRows);
+      }
+    } catch {
+      setError("Sign up failed");
     }
     setAuthLoading(false);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!supabase || !userId) return;
+    if (!userId) return;
 
     setSaving(true);
     setError(null);
 
     // Basic Validation
-    if (!form.playerA || !form.playerB || !form.winner) return;
+    if (!form.playerA || !form.playerB || !form.winner) {
+      setSaving(false);
+      return;
+    }
 
     const opponentName = form.playerB;
     const opponent = profiles.find(p => p.username === opponentName);
@@ -141,18 +197,21 @@ export default function AddGamePage() {
       player_b: teamB,
       winner: form.winner,
       score: form.score || "",
-      user_id: userId,
       opponent_id: opponent.id,
       opponent_email: opponent.email,
       status: requireVerification ? "pending" : "verified",
-      submitted_by: userId,
       balls_remaining: form.ballsRemaining ? parseInt(form.ballsRemaining) : null,
     };
 
-    const { error: insertError } = await supabase.from("games").insert(payload);
+    const response = await fetch("/api/games", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
 
-    if (insertError) {
-      setError(insertError.message);
+    if (!response.ok) {
+      setError(data.error || "Failed to create game");
     } else {
       const msg = requireVerification
         ? "Game submitted! Waiting for opponent verification."
@@ -174,37 +233,8 @@ export default function AddGamePage() {
           })
         }).catch(err => console.error("Failed to send push notification:", err));
       }
-
-      // Update ratings in background
-      updateRatings();
     }
     setSaving(false);
-  };
-
-  const updateRatings = async () => {
-    if (!supabase) return;
-    // Re-fetch all games to compute fresh ratings
-    const { data: allGames } = await supabase.from("games").select("*");
-    if (allGames) {
-      const mapped = allGames.map(mapGame);
-      const ratings = computeRatings(mapped);
-      const updates = Array.from(ratings.entries()).map(([player, record]) => {
-        const profile = profiles.find((p) => p.username === player);
-        if (!profile) return null;
-        return {
-          id: profile.id,
-          rating: record.rating,
-          rd: record.rd,
-          vol: record.vol,
-          streak: record.streak,
-        };
-      }).filter(Boolean);
-
-      if (updates.length > 0) {
-        const { error } = await supabase.from("profiles").upsert(updates);
-        if (error) console.error("Error updating ratings/streaks", error);
-      }
-    }
   };
 
   return (
@@ -216,7 +246,15 @@ export default function AddGamePage() {
         <p className="mt-2 text-white/50">Record a new match result</p>
       </div>
 
-      {!userId ? (
+      {isBootstrapping ? (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[320px]">
+          <Skeleton className="h-8 w-1/2 mb-4" />
+          <Skeleton className="h-10 w-full mb-3" />
+          <Skeleton className="h-10 w-full mb-3" />
+          <Skeleton className="h-10 w-2/3 mb-8" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+      ) : !userId ? (
         <AuthForm
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}

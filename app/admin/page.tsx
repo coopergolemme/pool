@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { Header } from "@/components/Header";
-import { mapGame } from "@/lib/types";
 import { Game } from "@/lib/glicko";
 import { motion, AnimatePresence } from "framer-motion";
 import { haptic } from "@/lib/haptics";
@@ -14,29 +12,19 @@ import Link from "next/link";
 export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [games, setGames] = useState<Game[]>([]);
-    const [userId, setUserId] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [runningBackfill, setRunningBackfill] = useState(false);
 
     useEffect(() => {
-        if (!supabase) return;
-
         const checkAuth = async () => {
-            if (!supabase) return;
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
+            const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+            const data = await res.json();
+            if (!res.ok || !data.user) {
                 setLoading(false);
                 return;
             }
 
-            setUserId(session.user.id);
-
-            const { data: profile } = await supabase
-                .from("profiles")
-                .select("role")
-                .eq("id", session.user.id)
-                .single();
-
-            if (profile?.role === "ADMIN") {
+            if (data.profile?.role === "ADMIN") {
                 setIsAdmin(true);
                 fetchPendingGames();
             } else {
@@ -44,20 +32,21 @@ export default function AdminPage() {
             }
         };
 
-        checkAuth();
+        void checkAuth();
     }, []);
 
     const fetchPendingGames = async () => {
-        if (!supabase) return;
-        const { data } = await supabase
-            .from("games")
-            .select("*")
-            .eq("status", "pending")
-            .order("created_at", { ascending: false });
-
-        if (data) {
-            setGames(data.map(mapGame));
+        const res = await fetch("/api/games/pending?scope=admin", {
+            method: "GET",
+            cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            toast.error(data.error || "Failed to fetch pending games");
+            setLoading(false);
+            return;
         }
+        setGames((data.games ?? []) as Game[]);
         setLoading(false);
     };
 
@@ -66,7 +55,7 @@ export default function AdminPage() {
             const res = await fetch("/api/games/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ gameId, action, userId })
+                body: JSON.stringify({ gameId, action })
             });
 
             const data = await res.json();
@@ -82,6 +71,28 @@ export default function AdminPage() {
             console.error("Error processing game:", error);
             const msg = error instanceof Error ? error.message : "Unknown error";
             toast.error("Failed: " + msg);
+        }
+    };
+
+    const handleRunBackfill = async () => {
+        try {
+            setRunningBackfill(true);
+            const res = await fetch("/api/cron/backfill", {
+                method: "GET",
+                cache: "no-store",
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to run backfill");
+            }
+
+            toast.success(data.message || "Backfill completed successfully.");
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : "Unknown error";
+            toast.error("Backfill failed: " + msg);
+        } finally {
+            setRunningBackfill(false);
         }
     };
 
@@ -119,8 +130,20 @@ export default function AdminPage() {
 
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-                <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
-                    {games.length} Pending
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            haptic.light();
+                            void handleRunBackfill();
+                        }}
+                        disabled={runningBackfill}
+                        className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-cyan-200 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {runningBackfill ? "Running..." : "Run Backfill"}
+                    </button>
+                    <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
+                        {games.length} Pending
+                    </div>
                 </div>
             </div>
 

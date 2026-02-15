@@ -4,39 +4,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { haptic } from "../lib/haptics";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase/client";
 
 export function Navigation() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (!supabase) return;
-
-    // Check if user is admin
     const checkAdmin = async () => {
-      if (!supabase) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profile?.role === "ADMIN") {
+      const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.profile?.role === "ADMIN") {
         setIsAdmin(true);
       }
     };
 
-    checkAdmin();
+    void checkAdmin();
   }, []);
 
   const isActive = (path: string) => pathname === path;
 
   return (
-    <nav className="relative z-[100] border-t border-white/10 bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-black/60 pb-[max(env(safe-area-inset-bottom),1rem)] sm:fixed sm:top-0 sm:bottom-auto sm:left-0 sm:right-0 sm:border-b sm:border-t-0 sm:pb-0">
+    <nav className="relative z-[100] border-t border-white/10 bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-black/60 pb-[max(env(safe-area-inset-bottom),1rem)] standalone:fixed standalone:bottom-0 standalone:left-0 standalone:right-0 sm:fixed sm:top-0 sm:bottom-auto sm:left-0 sm:right-0 sm:border-b sm:border-t-0 sm:pb-0">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="hidden font-[var(--font-display)] text-xl tracking-wider text-white sm:block">
           POOL

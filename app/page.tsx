@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase/client";
 import { Header } from "../components/Header";
 import { RecentGames } from "../components/RecentGames";
-import { computeRatingHistory, computeRatings, type Game } from "../lib/glicko";
+import { type Game, type RatingHistory } from "../lib/glicko";
 import { mapGame } from "../lib/types";
 import { AuthForm, type AuthFormData } from "../components/AuthForm";
 import { PendingGames } from "../components/PendingGames";
@@ -16,135 +16,224 @@ import { getConfig } from "../lib/config";
 import { Button } from "@/components/ui/Button";
 
 export default function Home() {
+  interface RatingChange {
+    gameId: string;
+    username: string;
+    postRating: number;
+    ratingDelta: number;
+  }
+  interface StreakLeader {
+    id: string;
+    username: string;
+    streak: number;
+  }
+  interface CurrentUserStats {
+    rating: number;
+    wins: number;
+    losses: number;
+    streak: number;
+    rd: number;
+  }
+
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [ratingChanges, setRatingChanges] = useState<RatingChange[]>([]);
+  const [streakLeaders, setStreakLeaders] = useState<StreakLeader[]>([]);
+  const [userStats, setUserStats] = useState<CurrentUserStats | null>(null);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [requireVerification, setRequireVerification] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  const fetchSession = async () => {
+    const res = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok || !data.user) {
+      return { email: null, id: null, username: null };
+    }
+
+    return {
+      email: data.user.email ?? null,
+      id: data.user.id ?? null,
+      username: data.profile?.username ?? null,
+    };
+  };
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setLoading(false);
+      setIsCheckingSession(false);
+      return;
+    }
 
-    getConfig("require_verification", true).then(setRequireVerification);
+    let canceled = false;
 
     const fetchData = async () => {
+      if (refreshKey === 0) {
+        setLoading(true);
+      }
 
-      if (!supabase) return;
-      setLoading(true);
+      try {
+        const [session, requireVerificationValue] = await Promise.all([
+          fetchSession(),
+          getConfig("require_verification", true),
+        ]);
 
-      const { data: gamesData } = await supabase
-        .from("games")
-        .select("*")
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .order("created_at", { ascending: false });
+        if (canceled) return;
 
-      if (!supabase) return;
+        setUserEmail(session.email);
+        setUserId(session.id);
+        setUserName(session.username);
+        setIsCheckingSession(false);
+        setRequireVerification(requireVerificationValue);
 
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("*");
+        const gamesRes = await fetch("/api/games?limit=500", {
+          method: "GET",
+        });
+        const gamesPayload = await gamesRes.json();
+        const gamesData = gamesRes.ok ? gamesPayload.games : null;
+        const recentGameIds: string[] = (gamesData ?? []).slice(0, 20).map((g: { id: string }) => g.id);
 
-      if (gamesData) setGames(gamesData.map(mapGame));
-      if (profilesData) setProfiles(profilesData);
+        let ratingHistoryData: RatingChange[] | null = [];
+        if (recentGameIds.length > 0) {
+          const ratingHistoryRes = await fetch(
+            `/api/rating-history?limit=2000&gameIds=${encodeURIComponent(recentGameIds.join(","))}`,
+            {
+              method: "GET",
+            },
+          );
+          const ratingHistoryPayload = await ratingHistoryRes.json();
+          ratingHistoryData = ratingHistoryRes.ok ? ratingHistoryPayload.changes : null;
+        }
 
-      setLoading(false);
+        const streaksRes = await fetch("/api/streaks?min=3&limit=20", {
+          method: "GET",
+        });
+        const streaksPayload = await streaksRes.json();
+        const streaksData = streaksRes.ok ? (streaksPayload.leaders as StreakLeader[]) : [];
+
+        let userStatsData: CurrentUserStats | null = null;
+        if (session.id) {
+          const userStatsRes = await fetch("/api/me/stats", {
+            method: "GET",
+          });
+          const userStatsPayload = await userStatsRes.json();
+          userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
+        }
+
+        if (canceled) return;
+
+        if (gamesData) setGames(gamesData.map(mapGame));
+        if (ratingHistoryData) setRatingChanges(ratingHistoryData);
+        setStreakLeaders(streaksData);
+        setUserStats(userStatsData);
+      } finally {
+        if (canceled) return;
+        setLoading(false);
+        setHasLoadedOnce(true);
+      }
     };
 
-    fetchData();
-
-    supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user.email ?? null);
-      setUserId(data.session?.user.id ?? null);
-      setIsCheckingSession(false);
-    });
-
-    if (!supabase) return;
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user.email ?? null);
-      setUserId(session?.user.id ?? null);
-      if (session?.user?.id && session.user.email) {
-        if (supabase) {
-          void supabase
-            .from("profiles")
-            .upsert({ id: session.user.id, email: session.user.email }, { onConflict: "id" });
-        }
-      }
-    });
-
+    void fetchData();
     return () => {
-      authListener.subscription.unsubscribe();
+      canceled = true;
     };
   }, [refreshKey]);
 
-  const userName = useMemo(() => {
-    if (userId && profiles.length > 0) {
-      const profile = profiles.find((p) => p.id === userId);
-      return profile ? profile.username : null;
-    }
-    return null;
-  }, [userId, profiles]);
-
   const handleSignIn = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     setAuthLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-    if (error) {
-      setError(error.message);
-    } else {
-      refreshPage();
+    try {
+      const res = await fetch("/api/sign-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign in failed");
+      } else {
+        const session = await fetchSession();
+        setUserEmail(session.email);
+        setUserId(session.id);
+        setUserName(session.username);
+        setIsCheckingSession(false);
+        setRefreshKey((k) => k + 1);
+      }
+    } catch {
+      setError("Sign in failed");
     }
     setAuthLoading(false);
   };
 
   const handleSignUp = async (authForm: AuthFormData) => {
-    if (!supabase) return;
     setAuthLoading(true);
     setError(null);
-    const { data, error } = await supabase.auth.signUp({
-      email: authForm.email,
-      password: authForm.password || "",
-    });
-
-    if (error) {
-      setError(error.message);
-    } else if (data.user?.id && authForm.username) {
-      await supabase
-        .from("profiles")
-        .upsert({ id: data.user.id, email: authForm.email, username: authForm.username }, { onConflict: "id" });
+    try {
+      const res = await fetch("/api/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: authForm.email,
+          password: authForm.password || "",
+          username: authForm.username,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Sign up failed");
+      } else if (data.needsEmailConfirmation) {
+        setError("Check your email to confirm your account before signing in.");
+      } else {
+        const session = await fetchSession();
+        setUserEmail(session.email);
+        setUserId(session.id);
+        setUserName(session.username);
+        setIsCheckingSession(false);
+        setRefreshKey((k) => k + 1);
+      }
+    } catch {
+      setError("Sign up failed");
     }
     setAuthLoading(false);
   };
 
   const handleSignOut = async () => {
-    if (!supabase) return;
     setAuthLoading(true);
-    await supabase.auth.signOut();
+    await fetch("/api/sign-out", { method: "POST" });
+    setUserEmail(null);
+    setUserId(null);
+    setUserName(null);
+    setUserStats(null);
     setAuthLoading(false);
   };
 
   const verifiedGames = useMemo(() => games.filter(g => g.status === "verified"), [games]);
-  const ratingHistory = useMemo(() => computeRatingHistory(verifiedGames), [verifiedGames]);
+  const showInitialSkeleton = !hasLoadedOnce && (loading || isCheckingSession);
+  const showSessionSkeleton = showInitialSkeleton || isCheckingSession || (userId && !userName);
+  const showTopLoading = showInitialSkeleton;
 
-  // Compute Glicko stats for all players to find streak leaders
-  const playerStats = useMemo(() => computeRatings(verifiedGames), [verifiedGames]);
-
-  // Find current user's stats
-  const userStats = useMemo(() => {
-    if (!userName || !playerStats) return null;
-    return playerStats.get(userName) ?? null;
-  }, [userName, playerStats]);
+  const ratingHistory = useMemo<RatingHistory>(() => {
+    return ratingChanges.reduce<RatingHistory>((acc, change) => {
+      if (!acc[change.gameId]) {
+        acc[change.gameId] = {};
+      }
+      acc[change.gameId][change.username] = {
+        rating: change.postRating,
+        delta: change.ratingDelta,
+      };
+      return acc;
+    }, {});
+  }, [ratingChanges]);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
@@ -154,14 +243,14 @@ export default function Home() {
       <div className="space-y-8">
         <PushManager userId={userId} />
         {/* Active Streaks */}
-        {userId && (
-          <StreakLeaders stats={playerStats} loading={loading} />
+        {(showInitialSkeleton || userId) && (
+          <StreakLeaders leaders={streakLeaders} loading={showTopLoading} />
         )}
 
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             {/* User Stats or Sign In */}
-            {isCheckingSession || (userId && !userName) ? (
+            {showSessionSkeleton ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
                 <Skeleton className="h-8 w-1/2 mb-4" />
                 <Skeleton className="h-10 w-full mb-2" />
@@ -188,13 +277,11 @@ export default function Home() {
           </div>
 
           {/* Recent Games Feed */}
-          {
-            userId &&
-
+          {(showInitialSkeleton || userId) && (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur sm:p-6 h-fit">
-              <RecentGames games={verifiedGames.slice(0, 20)} loading={loading} ratingHistory={ratingHistory} />
+              <RecentGames games={verifiedGames.slice(0, 20)} loading={showTopLoading} ratingHistory={ratingHistory} />
             </div>
-          }
+          )}
 
           {/* Signout button */}
           {userEmail && userName && (
@@ -213,7 +300,3 @@ export default function Home() {
     </main>
   );
 }
-function refreshPage() {
-  window.location.reload();
-}
-

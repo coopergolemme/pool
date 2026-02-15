@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DbGame } from "@/lib/types";
+import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
 
 
 export async function POST(request: Request) {
   try {
-    const { gameId, action, userId } = await request.json();
+    const { gameId, action } = await request.json();
     
-    if (!gameId || !action || !userId) {
+    if (!gameId || !action) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const { user, refreshed } = await getAuthUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
 
     const supabase = createAdminClient();
 
@@ -47,6 +56,7 @@ export async function POST(request: Request) {
             .eq("id", gameId);
         
         if (updateError) throw updateError;
+        revalidateTag(CACHE_TAGS.games, "max");
     } else if (action === "reject") {
         const { error: deleteError } = await supabase
             .from("games")
@@ -56,7 +66,12 @@ export async function POST(request: Request) {
         if (deleteError) throw deleteError;
         
         // If rejected, no need to update ratings as pending games don't affect ratings
-        return NextResponse.json({ success: true });
+        revalidateTag(CACHE_TAGS.games, "max");
+        const response = NextResponse.json({ success: true });
+        if (refreshed) {
+          setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
+        }
+        return response;
     } else {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -111,11 +126,25 @@ export async function POST(request: Request) {
         };
 
         const updates: ProfileUpdate[] = [];
+        const ratingChanges: Array<{
+          game_id: string;
+          profile_id: string;
+          username: string;
+          format: string;
+          result: "win" | "loss";
+          pre_rating: number;
+          post_rating: number;
+          pre_rd: number;
+          post_rd: number;
+          pre_vol: number;
+          post_vol: number;
+        }> = [];
 
         teamAPlayers.forEach(name => {
           const profile = profiles.find(p => p.username === name);
           if (profile) {
-            const newStats = calculateNewRatings(getStats(name), teamBRating, teamBRD, scoreA);
+            const previous = getStats(name);
+            const newStats = calculateNewRatings(previous, teamBRating, teamBRD, scoreA);
             updates.push({
               id: profile.id,
               rating: newStats.rating,
@@ -125,13 +154,27 @@ export async function POST(request: Request) {
               losses: newStats.losses,
               streak: newStats.streak
             });
+            ratingChanges.push({
+              game_id: game.id,
+              profile_id: profile.id,
+              username: name,
+              format: game.format ?? "8-ball",
+              result: scoreA === 1 ? "win" : "loss",
+              pre_rating: previous.rating,
+              post_rating: newStats.rating,
+              pre_rd: previous.rd,
+              post_rd: newStats.rd,
+              pre_vol: previous.vol,
+              post_vol: newStats.vol,
+            });
           }
         });
 
         teamBPlayers.forEach(name => {
           const profile = profiles.find(p => p.username === name);
           if (profile) {
-            const newStats = calculateNewRatings(getStats(name), teamARating, teamARD, scoreB);
+            const previous = getStats(name);
+            const newStats = calculateNewRatings(previous, teamARating, teamARD, scoreB);
             updates.push({
               id: profile.id,
               rating: newStats.rating,
@@ -140,6 +183,19 @@ export async function POST(request: Request) {
               wins: newStats.wins,
               losses: newStats.losses,
               streak: newStats.streak
+            });
+            ratingChanges.push({
+              game_id: game.id,
+              profile_id: profile.id,
+              username: name,
+              format: game.format ?? "8-ball",
+              result: scoreB === 1 ? "win" : "loss",
+              pre_rating: previous.rating,
+              post_rating: newStats.rating,
+              pre_rd: previous.rd,
+              post_rd: newStats.rd,
+              pre_vol: previous.vol,
+              post_vol: newStats.vol,
             });
           }
         });
@@ -148,10 +204,30 @@ export async function POST(request: Request) {
           const { error: upsertError } = await supabase.from("profiles").upsert(updates);
           if (upsertError) console.error("Rating update failed", upsertError);
         }
+
+        if (ratingChanges.length > 0) {
+          const { error: historyError } = await supabase
+            .from("game_rating_changes")
+            .upsert(ratingChanges, { onConflict: "game_id,profile_id" });
+          if (historyError) console.error("Rating history insert failed", historyError);
+        }
+
+        revalidateTag(CACHE_TAGS.games, "max");
+        revalidateTag(CACHE_TAGS.leaderboard, "max");
+        revalidateTag(CACHE_TAGS.streaks, "max");
+        revalidateTag(CACHE_TAGS.ratingHistory, "max");
+        revalidateTag(CACHE_TAGS.profiles, "max");
+        for (const name of new Set(allPlayerNames)) {
+          revalidateTag(profileTag(name), "max");
+        }
       }
     }
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    if (refreshed) {
+      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
+    }
+    return response;
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

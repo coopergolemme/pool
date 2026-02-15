@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase/client";
 import { Game } from "../lib/glicko";
-import { mapGame } from "../lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { haptic } from "../lib/haptics";
 import { toast } from "sonner";
@@ -25,28 +23,16 @@ export function PendingGames({ userId, userName, onUpdate, enabled = true }: Pen
     }
 
     const fetchPending = async () => {
-      if (!supabase) return;
-
-      // Fetch all pending games. 
-      // We process filtering in memory for simplicity since the pending list is expected to be small.
-      const { data } = await supabase
-        .from("games")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-
-      if (data) {
-        const games = data.map(mapGame);
-        // Filter: 
-        // 1. I am one of the players
-        // 2. I did NOT submit it (someone else did)
-        const relevant = games.filter(g => {
-          const amInGame = g.players.includes(userName);
-          const isMySubmission = g.submittedBy === userId;
-          return amInGame && !isMySubmission;
-        });
-        setPendingGames(relevant);
+      const res = await fetch("/api/games/pending", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPendingGames([]);
+        return;
       }
+      setPendingGames((data.games ?? []) as Game[]);
     };
 
     fetchPending();
