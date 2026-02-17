@@ -8,3 +8,6 @@ export const CACHE_TAGS = {
 
 export const profileTag = (username: string) =>
   `profile:${username.trim().toLowerCase()}`;
+
+export const userStatsTag = (userId: string) => `stats:${userId}`;
+export const userPendingTag = (userId: string) => `pending:${userId}`;

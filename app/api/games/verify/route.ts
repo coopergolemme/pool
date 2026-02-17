@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DbGame } from "@/lib/types";
 import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 import { revalidateTag } from "next/cache";
-import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
+import { CACHE_TAGS, profileTag, userStatsTag, userPendingTag } from "@/lib/cache-tags";
 
 
 export async function POST(request: Request) {
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
         
         if (updateError) throw updateError;
         revalidateTag(CACHE_TAGS.games, "max");
+        revalidateTag(userPendingTag(userId), "max");
     } else if (action === "reject") {
         const { error: deleteError } = await supabase
             .from("games")
@@ -219,6 +220,11 @@ export async function POST(request: Request) {
         revalidateTag(CACHE_TAGS.profiles, "max");
         for (const name of new Set(allPlayerNames)) {
           revalidateTag(profileTag(name), "max");
+          // Find the profile ID for this user to invalidate their stats
+          const profile = profiles.find(p => p.username === name);
+          if (profile) {
+            revalidateTag(userStatsTag(profile.id), "max");
+          }
         }
       }
     }

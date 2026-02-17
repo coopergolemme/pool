@@ -50,7 +50,14 @@ export async function GET(request: Request) {
 
     const leaders = await getStreaks(min, limit);
 
-    return NextResponse.json({ leaders });
+    return NextResponse.json(
+      { leaders },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching streak leaders:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
