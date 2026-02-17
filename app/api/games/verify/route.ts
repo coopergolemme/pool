@@ -202,8 +202,19 @@ export async function POST(request: Request) {
         });
 
         if (updates.length > 0) {
-          const { error: upsertError } = await supabase.from("profiles").upsert(updates);
-          if (upsertError) console.error("Rating update failed", upsertError);
+          await Promise.all(
+            updates.map(async (update) => {
+              const { id, ...data } = update;
+              const { error: updateError } = await supabase
+                .from("profiles")
+                .update(data)
+                .eq("id", id);
+              
+              if (updateError) {
+                console.error(`Rating update failed for profile ${id}`, updateError);
+              }
+            })
+          );
         }
 
         if (ratingChanges.length > 0) {
