@@ -2,6 +2,8 @@ import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-au
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapGame, type DbGame } from "@/lib/types";
+import { unstable_cache } from "next/cache";
+import { userPendingTag } from "@/lib/cache-tags";
 
 const PRIVATE_NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
@@ -22,11 +24,7 @@ export async function GET(request: Request) {
     }
 
     const supabase = createAdminClient();
-    let query = supabase
-      .from("games")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
+    let gamesData: DbGame[];
 
     if (adminMode) {
       const { data: profile, error: profileError } = await supabase
@@ -34,28 +32,45 @@ export async function GET(request: Request) {
         .select("role")
         .eq("id", userId)
         .single();
-
-      if (profileError) {
-        throw profileError;
-      }
-
+      
+      if (profileError) throw profileError;
       if (profile?.role !== "ADMIN") {
         return NextResponse.json(
           { error: "Forbidden" },
           { status: 403, headers: PRIVATE_NO_STORE_HEADERS },
         );
       }
+
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      gamesData = (data ?? []) as DbGame[];
     } else {
-      query = query.eq("opponent_id", userId).neq("submitted_by", userId);
+      const getPending = unstable_cache(
+        async (uid: string) => {
+          const supabase = createAdminClient();
+          const { data, error } = await supabase
+            .from("games")
+            .select("*")
+            .eq("status", "pending")
+            .eq("opponent_id", uid)
+            .neq("submitted_by", uid)
+            .order("created_at", { ascending: false });
+          
+          if (error) throw error;
+          return (data ?? []) as DbGame[];
+        },
+        [`pending-games-${userId}`],
+        { revalidate: 60, tags: [userPendingTag(userId)] }
+      );
+      gamesData = await getPending(userId);
     }
 
-    const { data, error } = await query;
-
-    if (error) {
-      throw error;
-    }
-
-    const games = (data ?? []).map((row) => mapGame(row as DbGame));
+    const games = gamesData.map(mapGame);
     const response = NextResponse.json({ games }, { headers: PRIVATE_NO_STORE_HEADERS });
     if (refreshed) {
       setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUserFromRequest, setAuthCookies, clearAuthCookies } from "@/lib/supabase/server-auth";
+import { unstable_cache } from "next/cache";
+import { userStatsTag } from "@/lib/cache-tags";
 
 const PRIVATE_NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
@@ -19,16 +21,23 @@ export async function GET(request: Request) {
       return response;
     }
 
-    const supabase = createAdminClient();
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("id, username, rating, rd, wins, losses, streak")
-      .eq("id", user.id)
-      .maybeSingle();
+    const getStats = unstable_cache(
+      async (userId: string) => {
+        const supabase = createAdminClient();
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("id, username, rating, rd, wins, losses, streak")
+          .eq("id", userId)
+          .maybeSingle();
 
-    if (error) {
-      throw error;
-    }
+        if (error) throw error;
+        return profile;
+      },
+      [`stats-${user.id}`],
+      { revalidate: 60, tags: [userStatsTag(user.id)] }
+    );
+
+    const profile = await getStats(user.id);
 
     const response = NextResponse.json({
       stats: profile

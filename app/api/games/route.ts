@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 import { unstable_cache, revalidateTag } from "next/cache";
-import { CACHE_TAGS, profileTag } from "@/lib/cache-tags";
+import { CACHE_TAGS, profileTag, userPendingTag } from "@/lib/cache-tags";
 import { parseTeam } from "@/lib/glicko";
 
 const DEFAULT_LIMIT = 20;
@@ -40,7 +40,14 @@ export async function GET(request: Request) {
       { revalidate: 30, tags: [CACHE_TAGS.games] },
     );
 
-    return NextResponse.json({ games: await getGames(limit) });
+    return NextResponse.json(
+      { games: await getGames(limit) },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching games:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -132,6 +139,10 @@ export async function POST(request: Request) {
       for (const name of new Set(participants)) {
         revalidateTag(profileTag(name), "max");
       }
+    }
+
+    if (insertPayload.opponent_id) {
+      revalidateTag(userPendingTag(insertPayload.opponent_id), "max");
     }
 
     const response = NextResponse.json({ success: true, id: data.id });
