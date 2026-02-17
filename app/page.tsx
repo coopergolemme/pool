@@ -14,6 +14,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { PushManager } from "../components/PushManager";
 import { getConfig } from "../lib/config";
 import { Button } from "@/components/ui/Button";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 
 export default function Home() {
   interface RatingChange {
@@ -93,9 +94,7 @@ export default function Home() {
         setIsCheckingSession(false);
         setRequireVerification(requireVerificationValue);
 
-        const gamesRes = await fetch("/api/games?limit=500", {
-          method: "GET",
-        });
+        const gamesRes = await fetch("/api/games?limit=500", {next: {tags: [CACHE_TAGS.games]}});
         const gamesPayload = await gamesRes.json();
         const gamesData = gamesRes.ok ? gamesPayload.games : null;
         const recentGameIds: string[] = (gamesData ?? []).slice(0, 20).map((g: { id: string }) => g.id);
@@ -105,24 +104,20 @@ export default function Home() {
           const ratingHistoryRes = await fetch(
             `/api/rating-history?limit=2000&gameIds=${encodeURIComponent(recentGameIds.join(","))}`,
             {
-              method: "GET",
+              next: {tags: [CACHE_TAGS.ratingHistory]}
             },
           );
           const ratingHistoryPayload = await ratingHistoryRes.json();
           ratingHistoryData = ratingHistoryRes.ok ? ratingHistoryPayload.changes : null;
         }
 
-        const streaksRes = await fetch("/api/streaks?min=3&limit=20", {
-          method: "GET",
-        });
+        const streaksRes = await fetch("/api/streaks?min=3&limit=20", {next: {tags: [CACHE_TAGS.streaks]}});
         const streaksPayload = await streaksRes.json();
         const streaksData = streaksRes.ok ? (streaksPayload.leaders as StreakLeader[]) : [];
 
         let userStatsData: CurrentUserStats | null = null;
         if (session.id) {
-          const userStatsRes = await fetch("/api/me/stats", {
-            method: "GET",
-          });
+          const userStatsRes = await fetch("/api/me/stats", { cache: "no-store"});
           const userStatsPayload = await userStatsRes.json();
           userStatsData = userStatsRes.ok ? (userStatsPayload.stats as CurrentUserStats | null) : null;
         }
