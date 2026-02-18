@@ -11,7 +11,7 @@ const PRIVATE_NO_STORE_HEADERS = {
 
 type ApproveRequestBody = {
   userId?: string;
-  action?: "approve";
+  action?: "approve" | "deny";
 };
 
 export async function GET(request: Request) {
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     if (!access.ok) return access.response;
 
     const { userId, action } = (await request.json()) as ApproveRequestBody;
-    if (!userId || action !== "approve") {
+    if (!userId || (action !== "approve" && action !== "deny")) {
       return NextResponse.json(
         { error: "Invalid request" },
         { status: 400, headers: PRIVATE_NO_STORE_HEADERS },
@@ -55,13 +55,23 @@ export async function POST(request: Request) {
     }
 
     const supabase = createAdminClient();
-    const { error } = await supabase
-      .from("profiles")
-      .update({ approved: true, approved_at: new Date().toISOString() })
-      .eq("id", userId)
-      .eq("approved", false);
+    if (action === "approve") {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ approved: true, approved_at: new Date().toISOString() })
+        .eq("id", userId)
+        .eq("approved", false);
 
-    if (error) throw error;
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId)
+        .eq("approved", false);
+
+      if (error) throw error;
+    }
 
     const response = NextResponse.json(
       { success: true },

@@ -135,6 +135,27 @@ export default function AdminPage() {
         }
     };
 
+    const handleDenyUser = async (userId: string) => {
+        try {
+            const res = await fetch("/api/admin/pending-users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, action: "deny" }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to deny user");
+            }
+
+            toast.success("User denied and profile deleted");
+            setPendingUsers((prev) => prev.filter((user) => user.id !== userId));
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : "Unknown error";
+            toast.error("Deny failed: " + msg);
+        }
+    };
+
     if (loading) {
         return (
             <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
@@ -211,15 +232,26 @@ export default function AdminPage() {
                                         Requested: {new Date(pendingUser.created_at).toLocaleString()}
                                     </p>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        haptic.success();
-                                        void handleApproveUser(pendingUser.id);
-                                    }}
-                                    className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
-                                >
-                                    Approve User
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            haptic.medium();
+                                            void handleDenyUser(pendingUser.id);
+                                        }}
+                                        className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20"
+                                    >
+                                        Deny
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            haptic.success();
+                                            void handleApproveUser(pendingUser.id);
+                                        }}
+                                        className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+                                    >
+                                        Approve User
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
