@@ -37,7 +37,7 @@ export function AuthForm({ onSignIn, onSignUp, loading, error }: AuthFormProps) 
       </h3>
       <p className="mt-2 text-sm text-white/60">
         {isSignUp
-          ? "Enter your details to create a new account."
+          ? "Enter your details to request an account. An admin must approve it first."
           : "Use your email and password to continue."}
       </p>
 

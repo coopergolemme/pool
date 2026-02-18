@@ -33,6 +33,7 @@ export async function GET(_request: Request, context: RouteContext) {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("id, username, email, rating, rd, vol, streak, wins, losses")
+          .eq("approved", true)
           .eq("username", requestedUsername)
           .maybeSingle();
 

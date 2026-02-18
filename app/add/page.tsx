@@ -151,6 +151,12 @@ export default function AddGamePage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Sign up failed");
+      } else if (data.requiresApproval) {
+        setError(
+          data.needsEmailConfirmation
+            ? "Check your email to confirm, then wait for admin approval before signing in."
+            : "Account created. Please wait for an admin to approve your account before signing in.",
+        );
       } else if (data.needsEmailConfirmation) {
         setError("Check your email to confirm your account before signing in.");
       } else {

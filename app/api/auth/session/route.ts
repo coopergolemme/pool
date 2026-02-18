@@ -19,9 +19,18 @@ export async function GET(request: Request) {
     const adminClient = createAdminClient();
     const { data: profile } = await adminClient
       .from("profiles")
-      .select("id, username, email, role")
+      .select("id, username, email, role, approved")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (!profile || !profile.approved) {
+      const response = NextResponse.json(
+        { user: null, error: "Your account is pending admin approval." },
+        { status: 403, headers: PRIVATE_NO_STORE_HEADERS },
+      );
+      clearAuthCookies(response);
+      return response;
+    }
 
     const response = NextResponse.json({
       user: {

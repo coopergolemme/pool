@@ -1,9 +1,9 @@
-import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapGame, type DbGame } from "@/lib/types";
 import { unstable_cache } from "next/cache";
 import { userPendingTag } from "@/lib/cache-tags";
+import { requireApprovedProfile, setRefreshedCookiesIfNeeded } from "@/lib/auth/require-approved-profile";
 
 const PRIVATE_NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0",
@@ -11,30 +11,18 @@ const PRIVATE_NO_STORE_HEADERS = {
 
 export async function GET(request: Request) {
   try {
-    const { user, refreshed } = await getAuthUserFromRequest(request);
-    const userId = user?.id;
+    const access = await requireApprovedProfile(request);
+    if (!access.ok) return access.response;
+
+    const userId = access.userId;
     const { searchParams } = new URL(request.url);
     const adminMode = searchParams.get("scope") === "admin";
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
-      );
-    }
 
     const supabase = createAdminClient();
     let gamesData: DbGame[];
 
     if (adminMode) {
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single();
-      
-      if (profileError) throw profileError;
-      if (profile?.role !== "ADMIN") {
+      if (access.profile.role !== "ADMIN") {
         return NextResponse.json(
           { error: "Forbidden" },
           { status: 403, headers: PRIVATE_NO_STORE_HEADERS },
@@ -72,9 +60,7 @@ export async function GET(request: Request) {
 
     const games = gamesData.map(mapGame);
     const response = NextResponse.json({ games }, { headers: PRIVATE_NO_STORE_HEADERS });
-    if (refreshed) {
-      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
-    }
+    setRefreshedCookiesIfNeeded(response, access.refreshed);
     return response;
   } catch (error) {
     console.error("Error fetching pending games:", error);

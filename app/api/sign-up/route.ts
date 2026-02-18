@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerAuthClient, setAuthCookies } from "@/lib/supabase/server-auth";
+import { createServerAuthClient } from "@/lib/supabase/server-auth";
+import { sendPushToUsers } from "@/lib/push/server";
 
 export async function POST(request: Request) {
   try {
@@ -23,18 +24,35 @@ export async function POST(request: Request) {
 
     const adminClient = createAdminClient();
     await adminClient.from("profiles").upsert(
-      { id: data.user.id, email, username: username || null },
+      { id: data.user.id, email, username: username || null, approved: false, role: "USER" },
       { onConflict: "id" },
     );
 
+    const { data: admins, error: adminsError } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("role", "ADMIN")
+      .eq("approved", true);
+
+    if (adminsError) {
+      console.error("Failed to load admins for signup notification:", adminsError);
+    } else {
+      const adminIds = (admins ?? []).map((row) => row.id as string);
+      const displayName = username?.trim() ? username.trim() : email;
+      sendPushToUsers(adminIds, {
+        title: "New Signup Request",
+        body: `${displayName} requested access to the app.`,
+        url: "/admin",
+      }).catch((notifyError) => {
+        console.error("Failed to notify admins about signup request:", notifyError);
+      });
+    }
+
     const response = NextResponse.json({
       user: { id: data.user.id, email: data.user.email },
+      requiresApproval: true,
       needsEmailConfirmation: !data.session,
     });
-
-    if (data.session?.access_token && data.session.refresh_token) {
-      setAuthCookies(response, data.session.access_token, data.session.refresh_token);
-    }
 
     return response;
   } catch (error) {

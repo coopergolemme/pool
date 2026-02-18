@@ -30,6 +30,7 @@ export async function GET(request: Request) {
         const { data, error } = await supabase
           .from("profiles")
           .select("id, username, streak")
+          .eq("approved", true)
           .not("username", "is", null)
           .gte("streak", requestedMin)
           .order("streak", { ascending: false })
