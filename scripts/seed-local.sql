@@ -8,6 +8,8 @@ create table if not exists public.profiles (
   rating numeric default 1500,
   rd numeric default 350,
   vol numeric default 0.06,
+  approved boolean not null default true,
+  approved_at timestamptz,
   created_at timestamptz not null default now()
 );
 

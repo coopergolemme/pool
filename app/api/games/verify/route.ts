@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DbGame } from "@/lib/types";
-import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS, profileTag, userStatsTag, userPendingTag } from "@/lib/cache-tags";
+import { requireApprovedProfile, setRefreshedCookiesIfNeeded } from "@/lib/auth/require-approved-profile";
 
 
 export async function POST(request: Request) {
@@ -14,11 +14,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const { user, refreshed } = await getAuthUserFromRequest(request);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userId = user.id;
+    const access = await requireApprovedProfile(request);
+    if (!access.ok) return access.response;
+    const userId = access.userId;
 
     const supabase = createAdminClient();
 
@@ -36,13 +34,7 @@ export async function POST(request: Request) {
     const game = gameData as DbGame;
 
     // Check permissions: User must be the opponent OR an admin
-    const { data: requesterProfile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single();
-
-    const isAdmin = requesterProfile?.role === "ADMIN";
+    const isAdmin = access.profile.role === "ADMIN";
 
     if (!isAdmin && game.opponent_id && game.opponent_id !== userId) {
          return NextResponse.json({ error: "Unauthorized: You are not the opponent" }, { status: 403 });
@@ -57,7 +49,9 @@ export async function POST(request: Request) {
         
         if (updateError) throw updateError;
         revalidateTag(CACHE_TAGS.games, "max");
-        revalidateTag(userPendingTag(userId), "max");
+        if (game.opponent_id) {
+          revalidateTag(userPendingTag(game.opponent_id), "max");
+        }
     } else if (action === "reject") {
         const { error: deleteError } = await supabase
             .from("games")
@@ -69,9 +63,7 @@ export async function POST(request: Request) {
         // If rejected, no need to update ratings as pending games don't affect ratings
         revalidateTag(CACHE_TAGS.games, "max");
         const response = NextResponse.json({ success: true });
-        if (refreshed) {
-          setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
-        }
+        setRefreshedCookiesIfNeeded(response, access.refreshed);
         return response;
     } else {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -241,9 +233,7 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ success: true });
-    if (refreshed) {
-      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
-    }
+    setRefreshedCookiesIfNeeded(response, access.refreshed);
     return response;
 
   } catch (err: unknown) {

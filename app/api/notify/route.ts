@@ -1,23 +1,5 @@
 import { NextResponse } from 'next/server';
-import webpush from 'web-push';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Supabase admin credentials missing");
-  return createClient(url, key);
-};
-
-webpush.setVapidDetails(
-  'mailto:support@example.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
-  process.env.VAPID_PRIVATE_KEY || ''
-);
-
-type PushSubscriptionRow = {
-  subscription: webpush.PushSubscription;
-};
+import { sendPushToUsers } from "@/lib/push/server";
 
 export async function POST(request: Request) {
   try {
@@ -27,23 +9,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    // Fetch subscription from Supabase
-    const { data: subs, error: fetchError } = await supabaseAdmin()
-      .from('push_subscriptions')
-      .select('subscription')
-      .eq('user_id', userId);
-
-    if (fetchError || !subs || subs.length === 0) {
+    const result = await sendPushToUsers([userId], { title, body, url });
+    if (result.totalSubscriptions === 0) {
       return NextResponse.json({ error: 'No subscription found' }, { status: 404 });
     }
-
-    const payload = JSON.stringify({ title, body, url });
-
-    const results = await Promise.allSettled(
-      (subs as PushSubscriptionRow[]).map((row) => webpush.sendNotification(row.subscription, payload))
-    );
-
-    return NextResponse.json({ success: true, results });
+    return NextResponse.json({ success: true, results: result.results });
   } catch (error: unknown) {
     console.error('Push error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

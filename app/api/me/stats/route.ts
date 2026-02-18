@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthUserFromRequest, setAuthCookies, clearAuthCookies } from "@/lib/supabase/server-auth";
+import { setRefreshedCookiesIfNeeded, requireApprovedProfile } from "@/lib/auth/require-approved-profile";
 import { unstable_cache } from "next/cache";
 import { userStatsTag } from "@/lib/cache-tags";
 
@@ -10,16 +10,8 @@ const PRIVATE_NO_STORE_HEADERS = {
 
 export async function GET(request: Request) {
   try {
-    const { user, refreshed } = await getAuthUserFromRequest(request);
-
-    if (!user) {
-      const response = NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: PRIVATE_NO_STORE_HEADERS },
-      );
-      clearAuthCookies(response);
-      return response;
-    }
+    const access = await requireApprovedProfile(request);
+    if (!access.ok) return access.response;
 
     const getStats = unstable_cache(
       async (userId: string) => {
@@ -33,11 +25,11 @@ export async function GET(request: Request) {
         if (error) throw error;
         return profile;
       },
-      [`stats-${user.id}`],
-      { revalidate: 60, tags: [userStatsTag(user.id)] }
+      [`stats-${access.userId}`],
+      { revalidate: 60, tags: [userStatsTag(access.userId)] }
     );
 
-    const profile = await getStats(user.id);
+    const profile = await getStats(access.userId);
 
     const response = NextResponse.json({
       stats: profile
@@ -53,9 +45,7 @@ export async function GET(request: Request) {
         : null,
     }, { headers: PRIVATE_NO_STORE_HEADERS });
 
-    if (refreshed) {
-      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
-    }
+    setRefreshedCookiesIfNeeded(response, access.refreshed);
 
     return response;
   } catch (error) {

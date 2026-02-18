@@ -21,9 +21,31 @@ export async function POST(request: Request) {
     }
 
     const adminClient = createAdminClient();
-    await adminClient
+    const { data: profile } = await adminClient
       .from("profiles")
-      .upsert({ id: data.user.id, email: data.user.email ?? email }, { onConflict: "id" });
+      .select("id, approved")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      await adminClient
+        .from("profiles")
+        .upsert(
+          { id: data.user.id, email: data.user.email ?? email, approved: false, role: "USER" },
+          { onConflict: "id" },
+        );
+      return NextResponse.json(
+        { error: "Your account is pending admin approval." },
+        { status: 403 },
+      );
+    }
+
+    if (!profile.approved) {
+      return NextResponse.json(
+        { error: "Your account is pending admin approval." },
+        { status: 403 },
+      );
+    }
 
     const response = NextResponse.json({ user: { id: data.user.id, email: data.user.email } });
     setAuthCookies(response, data.session.access_token, data.session.refresh_token);

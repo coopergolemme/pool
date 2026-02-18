@@ -12,6 +12,12 @@ import Link from "next/link";
 export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [games, setGames] = useState<Game[]>([]);
+    const [pendingUsers, setPendingUsers] = useState<Array<{
+        id: string;
+        email: string;
+        username: string | null;
+        created_at: string;
+    }>>([]);
     const [isAdmin, setIsAdmin] = useState(false);
     const [runningBackfill, setRunningBackfill] = useState(false);
 
@@ -26,7 +32,8 @@ export default function AdminPage() {
 
             if (data.profile?.role === "ADMIN") {
                 setIsAdmin(true);
-                fetchPendingGames();
+                await Promise.all([fetchPendingGames(), fetchPendingUsers()]);
+                setLoading(false);
             } else {
                 setLoading(false);
             }
@@ -43,11 +50,22 @@ export default function AdminPage() {
         const data = await res.json();
         if (!res.ok) {
             toast.error(data.error || "Failed to fetch pending games");
-            setLoading(false);
             return;
         }
         setGames((data.games ?? []) as Game[]);
-        setLoading(false);
+    };
+
+    const fetchPendingUsers = async () => {
+        const res = await fetch("/api/admin/pending-users", {
+            method: "GET",
+            cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            toast.error(data.error || "Failed to fetch pending users");
+            return;
+        }
+        setPendingUsers(data.users ?? []);
     };
 
     const handleAction = async (gameId: string, action: "accept" | "reject") => {
@@ -93,6 +111,27 @@ export default function AdminPage() {
             toast.error("Backfill failed: " + msg);
         } finally {
             setRunningBackfill(false);
+        }
+    };
+
+    const handleApproveUser = async (userId: string) => {
+        try {
+            const res = await fetch("/api/admin/pending-users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId, action: "approve" }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to approve user");
+            }
+
+            toast.success("User approved");
+            setPendingUsers((prev) => prev.filter((user) => user.id !== userId));
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : "Unknown error";
+            toast.error("Approval failed: " + msg);
         }
     };
 
@@ -142,10 +181,50 @@ export default function AdminPage() {
                         {runningBackfill ? "Running..." : "Run Backfill"}
                     </button>
                     <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
-                        {games.length} Pending
+                        {pendingUsers.length} Users Pending
+                    </div>
+                    <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
+                        {games.length} Games Pending
                     </div>
                 </div>
             </div>
+
+            <section className="space-y-4">
+                <h2 className="text-lg font-semibold text-white">Pending User Approvals</h2>
+                {pendingUsers.length === 0 ? (
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center">
+                        <p className="text-white/40">No users are waiting for approval.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {pendingUsers.map((pendingUser) => (
+                            <div
+                                key={pendingUser.id}
+                                className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div>
+                                    <p className="text-white font-semibold">
+                                        {pendingUser.username || pendingUser.email}
+                                    </p>
+                                    <p className="text-xs text-white/50">{pendingUser.email}</p>
+                                    <p className="text-xs text-white/40">
+                                        Requested: {new Date(pendingUser.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        haptic.success();
+                                        void handleApproveUser(pendingUser.id);
+                                    }}
+                                    className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
+                                >
+                                    Approve User
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
 
             {games.length === 0 ? (
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-12 text-center">

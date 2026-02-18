@@ -29,6 +29,7 @@ export async function GET(request: Request) {
         const { data, error } = await supabase
           .from("profiles")
           .select("username, rating, rd, wins, losses, streak")
+          .eq("approved", true)
           .not("username", "is", null)
           .order("rating", { ascending: false })
           .limit(requestedLimit);

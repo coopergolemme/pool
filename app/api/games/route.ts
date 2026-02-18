@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAuthUserFromRequest, setAuthCookies } from "@/lib/supabase/server-auth";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { CACHE_TAGS, profileTag, userPendingTag } from "@/lib/cache-tags";
 import { parseTeam } from "@/lib/glicko";
+import { requireApprovedProfile, setRefreshedCookiesIfNeeded } from "@/lib/auth/require-approved-profile";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 400;
@@ -72,10 +72,8 @@ type CreateGamePayload = {
 
 export async function POST(request: Request) {
   try {
-    const { user, refreshed } = await getAuthUserFromRequest(request);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const access = await requireApprovedProfile(request);
+    if (!access.ok) return access.response;
 
     const body = (await request.json()) as CreateGamePayload;
     const {
@@ -107,11 +105,11 @@ export async function POST(request: Request) {
       player_b,
       winner,
       score: score || "",
-      user_id: user.id,
+      user_id: access.userId,
       opponent_id: opponent_id || null,
       opponent_email: opponent_email || null,
       status: status || "pending",
-      submitted_by: user.id,
+      submitted_by: access.userId,
       balls_remaining: balls_remaining ?? null,
     };
 
@@ -146,9 +144,7 @@ export async function POST(request: Request) {
     }
 
     const response = NextResponse.json({ success: true, id: data.id });
-    if (refreshed) {
-      setAuthCookies(response, refreshed.accessToken, refreshed.refreshToken);
-    }
+    setRefreshedCookiesIfNeeded(response, access.refreshed);
     return response;
   } catch (error) {
     console.error("Error creating game:", error);
