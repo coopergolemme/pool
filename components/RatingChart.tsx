@@ -61,7 +61,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 
         {data.userRating !== undefined && (
           <div className="mt-2 border-t border-white/10 pt-2 flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-purple-400" />
+            <div className="h-2 w-2 rounded-full bg-[#caa468]" />
             <span className="text-xs text-white/70">You:</span>
             <span className="font-bold text-white">{Math.round(data.userRating)}</span>
           </div>
@@ -126,11 +126,11 @@ export function RatingChart({ data }: RatingChartProps) {
             <Line
               type="monotone"
               dataKey="userRating"
-              stroke="#a855f7" // Purple
+              stroke="#caa468"
               strokeWidth={2}
               strokeDasharray="4 4"
               dot={false}
-              activeDot={{ r: 4, fill: "#fff", stroke: "#a855f7", strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: "#fff", stroke: "#caa468", strokeWidth: 2 }}
               connectNulls
             />
 
