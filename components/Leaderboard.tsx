@@ -17,7 +17,7 @@ interface LeaderboardProps {
 export function Leaderboard({ leaderboard }: LeaderboardProps) {
   return (
     <Card>
-      <h3 className="font-[var(--font-display)] text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
+      <h3 className="font-(--font-display) text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
         Global Leaderboard
       </h3>
       <div className="mt-6 space-y-4">

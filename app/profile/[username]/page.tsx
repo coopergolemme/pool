@@ -214,9 +214,16 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 pb-24">
       <div className="mb-8">
-        <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
-          {username}
-        </h1>
+        <div className="flex items-end justify-between">
+          <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
+            {username}
+          </h1>
+          {currentUsername === username && (
+            <button className="mt-4 inline-flex items-center gap-2 rounded-full bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600">
+              Edit Profile
+            </button>
+          )}
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center col-span-2">
             <p className="text-xs uppercase tracking-widest text-white/50">Rating</p>

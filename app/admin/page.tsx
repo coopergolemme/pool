@@ -187,36 +187,30 @@ export default function AdminPage() {
     return (
         <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
             <Header />
-
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => {
-                            haptic.light();
-                            void handleRunBackfill();
-                        }}
-                        disabled={runningBackfill}
-                        className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-cyan-200 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {runningBackfill ? "Running..." : "Run Backfill"}
-                    </button>
-                    <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
-                        {pendingUsers.length} Users Pending
-                    </div>
-                    <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
-                        {games.length} Games Pending
-                    </div>
+                <button
+                    onClick={() => {
+                        haptic.light();
+                        void handleRunBackfill();
+                    }}
+                    disabled={runningBackfill}
+                    className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-cyan-200 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {runningBackfill ? "Running..." : "Run Backfill"}
+                </button>
+            </div>
+            <div className="flex items-center justify-between grow">
+                <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
+                    {pendingUsers.length} Users Pending
+                </div>
+                <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full text-xs font-medium text-white/60">
+                    {games.length} Games Pending
                 </div>
             </div>
 
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold text-white">Pending User Approvals</h2>
-                {pendingUsers.length === 0 ? (
-                    <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center">
-                        <p className="text-white/40">No users are waiting for approval.</p>
-                    </div>
-                ) : (
+            {pendingUsers.length > 0 && (
+                <section className="space-y-4">
                     <div className="space-y-3">
                         {pendingUsers.map((pendingUser) => (
                             <div
@@ -255,8 +249,8 @@ export default function AdminPage() {
                             </div>
                         ))}
                     </div>
-                )}
-            </section>
+                </section>
+            )}
 
             {games.length === 0 ? (
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-12 text-center">

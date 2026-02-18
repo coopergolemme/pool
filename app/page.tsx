@@ -252,7 +252,7 @@ export default function Home() {
           <div className="space-y-6">
             {/* User Stats or Sign In */}
             {showSessionSkeleton ? (
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-[200px]">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur sm:p-6 min-h-50">
                 <Skeleton className="h-8 w-1/2 mb-4" />
                 <Skeleton className="h-10 w-full mb-2" />
                 <Skeleton className="h-10 w-full" />
