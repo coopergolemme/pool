@@ -246,7 +246,7 @@ export default function AddGamePage() {
   return (
     <div className="mx-auto max-w-md p-4 sm:p-6 pb-32 sm:pb-6">
       <div className="mb-8 text-center">
-        <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
+        <h1 className="font-(--font-display) text-4xl uppercase tracking-widest text-white sm:text-6xl">
           Add Game
         </h1>
         <p className="mt-2 text-white/50">Record a new match result</p>

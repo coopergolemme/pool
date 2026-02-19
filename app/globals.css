@@ -10,6 +10,10 @@
   --chalk: #f4f3ee;
   --brass: #caa468;
   --ink: #0b0f0e;
+  --accent: #caa468;
+  --accent-strong: #e2bf86;
+  --success: #75d48d;
+  --danger: #f28a8a;
 }
 
 @theme inline {
@@ -39,6 +43,11 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--chalk);
 }
 
 * {

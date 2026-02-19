@@ -17,7 +17,7 @@ interface LeaderboardProps {
 export function Leaderboard({ leaderboard }: LeaderboardProps) {
   return (
     <Card>
-      <h3 className="font-[var(--font-display)] text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
+      <h3 className="font-(--font-display) text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
         Global Leaderboard
       </h3>
       <div className="mt-6 space-y-4">
@@ -39,7 +39,7 @@ export function Leaderboard({ leaderboard }: LeaderboardProps) {
                         {player.player}
                     </span>
                     {Math.abs(player.streak) >= 3 && (
-                        <div className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider font-bold ${player.streak > 0 ? "bg-orange-900/40 text-orange-200" : "bg-blue-900/40 text-blue-200"}`}>
+                        <div className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider font-bold ${player.streak > 0 ? "bg-orange-900/40 text-orange-200" : "bg-[#14463a]/60 text-[#b3d8ce]"}`}>
                             {player.streak > 0 ? "🔥" : "❄️"} {Math.abs(player.streak)}
                         </div>
                     )}

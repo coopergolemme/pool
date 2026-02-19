@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { parseTeam, type Game, type RatingHistory } from "../../../lib/glicko";
 import { RecentGames } from "../../../components/RecentGames";
 import { RatingChart } from "../../../components/RatingChart";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { Button } from "../../../components/ui/Button";
+import { Input } from "../../../components/ui/Input";
 
 type ProfileStats = {
   id: string;
@@ -55,6 +58,12 @@ export default function ProfilePage() {
   const [ratingHistory, setRatingHistory] = useState<RatingHistory>({});
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "h2h">("all");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editUsername, setEditUsername] = useState("");
+  const [editNotificationsEnabled, setEditNotificationsEnabled] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileEditError, setProfileEditError] = useState<string | null>(null);
+  const [profileEditSuccess, setProfileEditSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,6 +95,20 @@ export default function ProfilePage() {
 
     void fetchData();
   }, [username]);
+
+  useEffect(() => {
+    if (!isEditingProfile || currentUsername !== username) return;
+
+    const fetchEditableProfile = async () => {
+      const res = await fetch("/api/me/profile", { method: "GET", cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok || !data.profile) return;
+      setEditUsername(data.profile.username ?? "");
+      setEditNotificationsEnabled(Boolean(data.profile.notificationsEnabled));
+    };
+
+    void fetchEditableProfile();
+  }, [isEditingProfile, currentUsername, username]);
 
   const stats = useMemo(() => {
     if (!profile) return null;
@@ -211,12 +234,121 @@ export default function ProfilePage() {
     return <div className="p-8 text-center text-white/50">Player not found</div>;
   }
 
+  const saveProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingProfile(true);
+    setProfileEditError(null);
+    setProfileEditSuccess(null);
+
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: editUsername,
+          notificationsEnabled: editNotificationsEnabled,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProfileEditError(data.error ?? "Failed to update profile.");
+        return;
+      }
+
+      const nextUsername = data.profile?.username ?? editUsername;
+      setProfileEditSuccess("Profile updated.");
+      setIsEditingProfile(false);
+      if (nextUsername && nextUsername !== username) {
+        window.location.assign(`/profile/${encodeURIComponent(nextUsername)}`);
+        return;
+      }
+
+      setCurrentUsername(nextUsername ?? null);
+      setProfile((prev) => (prev ? { ...prev, username: nextUsername } : prev));
+    } catch {
+      setProfileEditError("Failed to update profile.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6 pb-24">
       <div className="mb-8">
-        <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
-          {username}
-        </h1>
+        <div className="flex items-end justify-between">
+          <h1 className="font-[var(--font-display)] text-4xl uppercase tracking-widest text-white sm:text-6xl">
+            {username}
+          </h1>
+          {currentUsername === username && (
+            <button
+              onClick={() => {
+                setProfileEditError(null);
+                setProfileEditSuccess(null);
+                setIsEditingProfile((prev) => !prev);
+              }}
+              className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#caa468]/60 bg-[#caa468] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#ddb87a]"
+            >
+              Edit Profile
+            </button>
+          )}
+        </div>
+        {isEditingProfile && currentUsername === username && (
+          <form
+            onSubmit={saveProfile}
+            className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-black/30 p-4"
+          >
+            {profileEditError && (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+                {profileEditError}
+              </div>
+            )}
+            {profileEditSuccess && (
+              <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-300">
+                {profileEditSuccess}
+              </div>
+            )}
+            <Input
+              label="Username"
+              value={editUsername}
+              onChange={(e) => setEditUsername(e.target.value)}
+              minLength={3}
+              maxLength={24}
+              required
+            />
+            <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
+              Push Notifications
+              <input
+                type="checkbox"
+                checked={editNotificationsEnabled}
+                onChange={(e) => setEditNotificationsEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-white/20 bg-black/50"
+              />
+            </label>
+            <p className="text-xs text-white/50">
+              Turning this off removes your current subscription. Turning it on requires browser
+              permission from the home page prompt.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={savingProfile}>
+                {savingProfile ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsEditingProfile(false)}
+                disabled={savingProfile}
+              >
+                Cancel
+              </Button>
+              <Link
+                href="/forgot-password"
+                className="inline-flex items-center rounded-xl border border-white/10 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/70 hover:border-white/30 hover:text-white"
+              >
+                Reset Password
+              </Link>
+            </div>
+          </form>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center col-span-2">
             <p className="text-xs uppercase tracking-widest text-white/50">Rating</p>
@@ -247,7 +379,7 @@ export default function ProfilePage() {
           </div>
           <div
             onClick={() => setActiveFilter("all")}
-            className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "all" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"} ${!vsRecord ? "col-span-2 sm:col-span-full" : ""}`}
+            className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "all" ? "border-[#caa468]/50 bg-white/10" : "border-white/10 hover:bg-white/10"} ${!vsRecord ? "col-span-2 sm:col-span-full" : ""}`}
           >
             <p className="text-xs uppercase tracking-widest text-white/50">Games</p>
             <p className="text-2xl font-bold text-white">{stats.gamesPlayed}</p>
@@ -255,7 +387,7 @@ export default function ProfilePage() {
           {vsRecord && (
             <div
               onClick={() => setActiveFilter("h2h")}
-              className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "h2h" ? "border-purple-500/50 bg-white/10" : "border-white/10 hover:bg-white/10"}`}
+              className={`rounded-2xl border bg-white/5 p-4 text-center transition-colors cursor-pointer ${activeFilter === "h2h" ? "border-[#caa468]/50 bg-white/10" : "border-white/10 hover:bg-white/10"}`}
             >
               <p className="text-xs uppercase tracking-widest text-white/50">Vs You</p>
               <p className="text-2xl font-bold text-white">{vsRecord}</p>
