@@ -25,7 +25,7 @@ type ProfileStats = {
 type ChartPoint = {
   date: string;
   rating: number;
-  gameIndex: number;
+  gameNumber: number;
   userRating?: number;
   opponent?: string;
   result?: "W" | "L";
@@ -164,7 +164,7 @@ export default function ProfilePage() {
     });
 
     const data: ChartPoint[] = [];
-    let gameIndex = 0;
+    let gameNumber = 1;
     let currentCtxUserRating: number | undefined;
     let currentProfileRating: number | undefined;
     let hasProfileStarted = false;
@@ -196,7 +196,7 @@ export default function ProfilePage() {
         data.push({
           date: game.date,
           rating: currentProfileRating!,
-          gameIndex: gameIndex++,
+          gameNumber: gameNumber++,
           opponent: profilePlayed ? getOpponentLabel(game, username) : undefined,
           result,
           userRating: currentUsername === username ? undefined : currentCtxUserRating,

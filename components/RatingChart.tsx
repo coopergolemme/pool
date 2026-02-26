@@ -16,7 +16,7 @@ interface RatingChartProps {
   data: {
     date: string;
     rating: number;
-    gameIndex: number;
+    gameNumber: number;
     userRating?: number; // Comparison rating
     opponent?: string;
     result?: "W" | "L";
@@ -29,6 +29,7 @@ interface CustomTooltipProps {
     payload: {
       displayDate: string;
       rating: number;
+      gameNumber: number;
       opponent?: string;
       result?: "W" | "L";
       userRating?: number;
@@ -42,6 +43,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     return (
       <div className="rounded-xl border border-white/10 bg-black/90 p-3 shadow-xl backdrop-blur-md">
         <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">{data.displayDate}</p>
+        <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Game #{data.gameNumber}</p>
 
         <div className="flex items-center gap-2 mb-1">
           <div className="h-2 w-2 rounded-full bg-green-400" />
@@ -95,12 +97,17 @@ export function RatingChart({ data }: RatingChartProps) {
     );
   }
 
-  // Calculate domain for Y-axis to make the chart look dynamic
-  // Include userRating in min/max calculation if present
-  const allRatings = chartData.flatMap(d => d.userRating !== undefined ? [d.rating, d.userRating] : [d.rating]);
+  const allRatings = chartData.flatMap((d) =>
+    d.userRating !== undefined ? [d.rating, d.userRating] : [d.rating],
+  );
   const minRating = Math.min(...allRatings);
   const maxRating = Math.max(...allRatings);
-  const padding = (maxRating - minRating) * 0.2 || 50; // Increased padding to 20% to avoid clipping
+  const anchoredMin = Math.min(minRating, 1500);
+  const anchoredMax = Math.max(maxRating, 1500);
+  const span = Math.max(anchoredMax - anchoredMin, 120);
+  const padding = Math.max(span * 0.1, 25);
+  const domainMin = Math.floor((anchoredMin - padding) / 25) * 25;
+  const domainMax = Math.ceil((anchoredMax + padding) / 25) * 25;
 
   return (
     <div className="h-64 w-full rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-[0_24px_60px_rgba(7,10,9,0.6)] backdrop-blur">
@@ -111,13 +118,13 @@ export function RatingChart({ data }: RatingChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-            <XAxis
-              dataKey="gameIndex"
-              hide
-            />
+            <XAxis dataKey="gameNumber" tickLine={false} axisLine={false} tick={{ fill: "#ffffff80", fontSize: 11 }} />
             <YAxis
-              domain={[Math.floor(minRating - padding), Math.ceil(maxRating + padding)]}
-              hide
+              domain={[domainMin, domainMax]}
+              tickLine={false}
+              axisLine={false}
+              width={42}
+              tick={{ fill: "#ffffff80", fontSize: 11 }}
             />
             <Tooltip content={<CustomTooltip />} />
             <ReferenceLine y={1500} stroke="#ffffff20" strokeDasharray="3 3" />
