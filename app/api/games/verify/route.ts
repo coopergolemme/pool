@@ -4,6 +4,39 @@ import { DbGame } from "@/lib/types";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS, profileTag, userStatsTag, userPendingTag } from "@/lib/cache-tags";
 import { requireApprovedProfile, setRefreshedCookiesIfNeeded } from "@/lib/auth/require-approved-profile";
+import { getRatingTrack, is2v2Format } from "@/lib/rating-track";
+
+const toNumber = (value: unknown, fallback: number) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const getProfileRatingFields = (format: string) => {
+  const track = getRatingTrack(format);
+  if (track === "9-ball") {
+    return {
+      rating: "rating_9ball",
+      rd: "rd_9ball",
+      vol: "vol_9ball",
+      wins: "wins_9ball",
+      losses: "losses_9ball",
+      streak: "streak_9ball",
+    } as const;
+  }
+
+  return {
+    rating: "rating",
+    rd: "rd",
+    vol: "vol",
+    wins: "wins",
+    losses: "losses",
+    streak: "streak",
+  } as const;
+};
 
 
 export async function POST(request: Request) {
@@ -70,9 +103,10 @@ export async function POST(request: Request) {
     }
 
     // 3. Incremental Rating Update
-    const is2v2 = game.format === "8-ball-2v2";
+    const is2v2 = is2v2Format(game.format ?? "8-ball");
     if (game.player_a && game.player_b && game.winner) {
       const { parseTeam, calculateNewRatings, DEFAULT_RATING, DEFAULT_RD, DEFAULT_VOL } = await import("@/lib/glicko");
+      const fields = getProfileRatingFields(game.format ?? "8-ball");
 
       const teamAPlayers = parseTeam(game.player_a, is2v2);
       const teamBPlayers = parseTeam(game.player_b, is2v2);
@@ -86,12 +120,12 @@ export async function POST(request: Request) {
 
       if (!profileError && profiles) {
         const profileMap = new Map(profiles.map(p => [p.username, {
-          rating: Number(p.rating),
-          rd: Number(p.rd),
-          vol: Number(p.vol),
-          wins: p.wins || 0,
-          losses: p.losses || 0,
-          streak: p.streak || 0
+          rating: toNumber(p[fields.rating], DEFAULT_RATING),
+          rd: toNumber(p[fields.rd], DEFAULT_RD),
+          vol: toNumber(p[fields.vol], DEFAULT_VOL),
+          wins: toNumber(p[fields.wins], 0),
+          losses: toNumber(p[fields.losses], 0),
+          streak: toNumber(p[fields.streak], 0)
         }]));
 
         const getStats = (name: string) => profileMap.get(name) || {
@@ -110,12 +144,7 @@ export async function POST(request: Request) {
 
         type ProfileUpdate = {
           id: string;
-          rating: number;
-          rd: number;
-          vol: number;
-          wins: number;
-          losses: number;
-          streak: number;
+          [key: string]: string | number;
         };
 
         const updates: ProfileUpdate[] = [];
@@ -140,12 +169,12 @@ export async function POST(request: Request) {
             const newStats = calculateNewRatings(previous, teamBRating, teamBRD, scoreA);
             updates.push({
               id: profile.id,
-              rating: newStats.rating,
-              rd: newStats.rd,
-              vol: newStats.vol,
-              wins: newStats.wins,
-              losses: newStats.losses,
-              streak: newStats.streak
+              [fields.rating]: newStats.rating,
+              [fields.rd]: newStats.rd,
+              [fields.vol]: newStats.vol,
+              [fields.wins]: newStats.wins,
+              [fields.losses]: newStats.losses,
+              [fields.streak]: newStats.streak
             });
             ratingChanges.push({
               game_id: game.id,
@@ -170,12 +199,12 @@ export async function POST(request: Request) {
             const newStats = calculateNewRatings(previous, teamARating, teamARD, scoreB);
             updates.push({
               id: profile.id,
-              rating: newStats.rating,
-              rd: newStats.rd,
-              vol: newStats.vol,
-              wins: newStats.wins,
-              losses: newStats.losses,
-              streak: newStats.streak
+              [fields.rating]: newStats.rating,
+              [fields.rd]: newStats.rd,
+              [fields.vol]: newStats.vol,
+              [fields.wins]: newStats.wins,
+              [fields.losses]: newStats.losses,
+              [fields.streak]: newStats.streak
             });
             ratingChanges.push({
               game_id: game.id,

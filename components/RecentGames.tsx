@@ -2,6 +2,7 @@ import { type Game } from "../lib/glicko";
 import Link from "next/link";
 import { Skeleton } from "./ui/Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatLabels } from "../lib/types";
 
 interface RecentGamesProps {
   games: Game[];
@@ -77,6 +78,9 @@ export function RecentGames({ games, title, loading, ratingHistory }: RecentGame
                           hour: "numeric",
                           minute: "2-digit",
                         })}
+                      </span>
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/50">
+                        {formatLabels[game.format]}
                       </span>
                       {game.ballsRemaining !== null && (
                         <span className="ml-auto text-[10px] font-mono leading-none text-white/40">

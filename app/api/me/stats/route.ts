@@ -18,7 +18,9 @@ export async function GET(request: Request) {
         const supabase = createAdminClient();
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("id, username, rating, rd, wins, losses, streak")
+          .select(
+            "id, username, rating, rd, wins, losses, streak, rating_9ball, rd_9ball, wins_9ball, losses_9ball, streak_9ball",
+          )
           .eq("id", userId)
           .maybeSingle();
 
@@ -41,6 +43,13 @@ export async function GET(request: Request) {
             wins: profile.wins ?? 0,
             losses: profile.losses ?? 0,
             streak: profile.streak ?? 0,
+            nineBall: {
+              rating: Number(profile.rating_9ball ?? 1500),
+              rd: Number(profile.rd_9ball ?? 350),
+              wins: profile.wins_9ball ?? 0,
+              losses: profile.losses_9ball ?? 0,
+              streak: profile.streak_9ball ?? 0,
+            },
           }
         : null,
     }, { headers: PRIVATE_NO_STORE_HEADERS });

@@ -1,7 +1,6 @@
 generator client {
-  provider        = "prisma-client"
-  output          = "../lib/generated/prisma"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
 }
 
 datasource db {
@@ -468,6 +467,12 @@ model profiles {
   streak              Int?                  @default(0)
   losses              Int?                  @default(0)
   wins                Int?                  @default(0)
+  rating_9ball        Decimal?              @default(1500) @db.Decimal
+  rd_9ball            Decimal?              @default(350) @db.Decimal
+  vol_9ball           Decimal?              @default(0.06) @db.Decimal
+  streak_9ball        Int?                  @default(0)
+  losses_9ball        Int?                  @default(0)
+  wins_9ball          Int?                  @default(0)
   role                Role                  @default(USER)
   approved            Boolean               @default(true)
   approved_at         DateTime?             @db.Timestamptz(6)
@@ -515,6 +520,40 @@ model game_rating_changes {
   @@index([profile_id, created_at(sort: Desc)], map: "game_rating_changes_profile_created_idx")
   @@index([username, created_at(sort: Desc)], map: "game_rating_changes_username_created_idx")
   @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model custom_oauth_providers {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider_type         String
+  identifier            String    @unique
+  name                  String
+  client_id             String
+  client_secret         String
+  acceptable_client_ids String[]  @default([])
+  scopes                String[]  @default([])
+  pkce_enabled          Boolean   @default(true)
+  attribute_mapping     Json      @default("{}")
+  authorization_params  Json      @default("{}")
+  enabled               Boolean   @default(true)
+  email_optional        Boolean   @default(false)
+  issuer                String?
+  discovery_url         String?
+  skip_nonce_check      Boolean   @default(false)
+  cached_discovery      Json?
+  discovery_cached_at   DateTime? @db.Timestamptz(6)
+  authorization_url     String?
+  token_url             String?
+  userinfo_url          String?
+  jwks_uri              String?
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at])
+  @@index([enabled])
+  @@index([identifier])
+  @@index([provider_type])
+  @@schema("auth")
 }
 
 enum Role {

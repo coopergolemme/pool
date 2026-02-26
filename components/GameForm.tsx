@@ -5,7 +5,7 @@ import { Select } from "./ui/Select";
 import { Card } from "./ui/Card";
 
 interface GameFormState {
-  format: "8-ball" | "8-ball-2v2";
+  format: "8-ball" | "8-ball-2v2" | "9-ball";
   playerA: string;
   playerB: string;
   playerC: string;
@@ -54,7 +54,7 @@ export function GameForm<T extends GameFormState>({ form, setForm, profiles, isS
         <div className="grid gap-4">
           <div className="space-y-2 text-[10px] uppercase tracking-[0.25em] text-white/60 sm:text-xs sm:tracking-[0.3em]">
             Game Mode
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Button
                 type="button"
                 className="w-full"
@@ -63,6 +63,15 @@ export function GameForm<T extends GameFormState>({ form, setForm, profiles, isS
                 disabled={!isSignedIn || saving}
               >
                 8-Ball
+              </Button>
+              <Button
+                type="button"
+                className="w-full"
+                variant={form.format === "9-ball" ? "primary" : "outline"}
+                onClick={() => updateForm({ format: "9-ball" })}
+                disabled={!isSignedIn || saving}
+              >
+                9-Ball
               </Button>
               <Button
                 type="button"

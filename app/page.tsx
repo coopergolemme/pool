@@ -34,6 +34,13 @@ export default function Home() {
     losses: number;
     streak: number;
     rd: number;
+    nineBall?: {
+      rating: number;
+      wins: number;
+      losses: number;
+      streak: number;
+      rd: number;
+    };
   }
 
   const [games, setGames] = useState<Game[]>([]);
