@@ -2,6 +2,7 @@ import { Card } from "./ui/Card";
 import Link from "next/link";
 
 interface LeaderboardProps {
+  title?: string;
   leaderboard: {
     player: string;
     rating: number;
@@ -14,11 +15,11 @@ interface LeaderboardProps {
   }[];
 }
 
-export function Leaderboard({ leaderboard }: LeaderboardProps) {
+export function Leaderboard({ leaderboard, title = "Global Leaderboard" }: LeaderboardProps) {
   return (
     <Card>
       <h3 className="font-(--font-display) text-xl tracking-[0.06em] sm:text-2xl sm:tracking-[0.08em]">
-        Global Leaderboard
+        {title}
       </h3>
       <div className="mt-6 space-y-4">
         {leaderboard.length === 0 ? (

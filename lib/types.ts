@@ -38,4 +38,5 @@ export const mapGame = (row: DbGame): Game => {
 export const formatLabels: Record<Game["format"], string> = {
   "8-ball": "8-Ball",
   "8-ball-2v2": "2v2 8-Ball",
+  "9-ball": "9-Ball",
 };

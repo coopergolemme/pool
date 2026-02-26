@@ -20,6 +20,12 @@ type ProfileStats = {
   streak: number;
   wins: number;
   losses: number;
+  rating9Ball: number;
+  rd9Ball: number;
+  vol9Ball: number;
+  streak9Ball: number;
+  wins9Ball: number;
+  losses9Ball: number;
 };
 
 type ChartPoint = {
@@ -114,6 +120,8 @@ export default function ProfilePage() {
     if (!profile) return null;
     const gamesPlayed = profile.wins + profile.losses;
     const winRate = gamesPlayed ? Math.round((profile.wins / gamesPlayed) * 100) : 0;
+    const gamesPlayed9Ball = profile.wins9Ball + profile.losses9Ball;
+    const winRate9Ball = gamesPlayed9Ball ? Math.round((profile.wins9Ball / gamesPlayed9Ball) * 100) : 0;
     const avgBallsWon = (() => {
       const winsWithBalls = games.filter(
         (g) => didPlayerWin(g, username) && g.ballsRemaining !== null && g.ballsRemaining !== undefined,
@@ -131,6 +139,13 @@ export default function ProfilePage() {
       streak: profile.streak,
       gamesPlayed,
       winRate,
+      rating9Ball: Math.round(profile.rating9Ball),
+      rd9Ball: Math.round(profile.rd9Ball),
+      wins9Ball: profile.wins9Ball,
+      losses9Ball: profile.losses9Ball,
+      streak9Ball: profile.streak9Ball,
+      gamesPlayed9Ball,
+      winRate9Ball,
       avgBallsWon,
     };
   }, [profile, games, username]);
@@ -351,19 +366,24 @@ export default function ProfilePage() {
         )}
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center col-span-2">
-            <p className="text-xs uppercase tracking-widest text-white/50">Rating</p>
+            <p className="text-xs uppercase tracking-widest text-white/50">8-Ball Rating</p>
             <p className="text-2xl font-bold text-white">{stats.rating}</p>
             <p className="text-[10px] text-white/40">±{stats.rd}</p>
           </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center col-span-2">
+            <p className="text-xs uppercase tracking-widest text-white/50">9-Ball Rating</p>
+            <p className="text-2xl font-bold text-white">{stats.rating9Ball}</p>
+            <p className="text-[10px] text-white/40">±{stats.rd9Ball}</p>
+          </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-            <p className="text-xs uppercase tracking-widest text-white/50">Win Rate</p>
+            <p className="text-xs uppercase tracking-widest text-white/50">8-Ball Win Rate</p>
             <p className="text-2xl font-bold text-white">{stats.winRate}%</p>
             <p className="text-[10px] text-white/40">
               {stats.wins}W - {stats.losses}L
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-            <p className="text-xs uppercase tracking-widest text-white/50">Streak</p>
+            <p className="text-xs uppercase tracking-widest text-white/50">8-Ball Streak</p>
             <div className="flex items-center justify-center gap-1">
               <span className="text-2xl font-bold text-white">{Math.abs(stats.streak)}</span>
               {Math.abs(stats.streak) >= 3 && (
@@ -371,6 +391,23 @@ export default function ProfilePage() {
               )}
             </div>
             <p className="text-[10px] text-white/40">{stats.streak > 0 ? "Wins" : "Losses"}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+            <p className="text-xs uppercase tracking-widest text-white/50">9-Ball Win Rate</p>
+            <p className="text-2xl font-bold text-white">{stats.winRate9Ball}%</p>
+            <p className="text-[10px] text-white/40">
+              {stats.wins9Ball}W - {stats.losses9Ball}L
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+            <p className="text-xs uppercase tracking-widest text-white/50">9-Ball Streak</p>
+            <div className="flex items-center justify-center gap-1">
+              <span className="text-2xl font-bold text-white">{Math.abs(stats.streak9Ball)}</span>
+              {Math.abs(stats.streak9Ball) >= 3 && (
+                <span className="text-xl">{stats.streak9Ball > 0 ? "🔥" : "❄️"}</span>
+              )}
+            </div>
+            <p className="text-[10px] text-white/40">{stats.streak9Ball > 0 ? "Wins" : "Losses"}</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
             <p className="text-xs uppercase tracking-widest text-white/50">Avg Won By</p>

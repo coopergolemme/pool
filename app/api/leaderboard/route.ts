@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache-tags";
+import { type RatingTrack } from "@/lib/rating-track";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
@@ -15,6 +16,8 @@ const toNumber = (value: unknown) => {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const formatParam = searchParams.get("format");
+    const format: RatingTrack = formatParam === "9-ball" ? "9-ball" : "8-ball";
     const limitParam = searchParams.get("limit");
     const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : DEFAULT_LIMIT;
 
@@ -24,31 +27,35 @@ export async function GET(request: Request) {
 
     const limit = Math.min(parsedLimit, MAX_LIMIT);
     const getLeaderboard = unstable_cache(
-      async (requestedLimit: number) => {
+      async (requestedLimit: number, requestedFormat: RatingTrack) => {
         const supabase = createAdminClient();
         const { data, error } = await supabase
           .from("profiles")
-          .select("username, rating, rd, wins, losses, streak")
+          .select(
+            "username, rating, rd, wins, losses, streak, rating_9ball, rd_9ball, wins_9ball, losses_9ball, streak_9ball",
+          )
           .eq("approved", true)
           .not("username", "is", null)
-          .order("rating", { ascending: false })
+          .order(requestedFormat === "9-ball" ? "rating_9ball" : "rating", { ascending: false })
           .limit(requestedLimit);
 
         if (error) throw error;
 
         return (data ?? [])
           .map((row) => {
-            const wins = row.wins ?? 0;
-            const losses = row.losses ?? 0;
+            const wins = requestedFormat === "9-ball" ? (row.wins_9ball ?? 0) : (row.wins ?? 0);
+            const losses = requestedFormat === "9-ball" ? (row.losses_9ball ?? 0) : (row.losses ?? 0);
             const gamesPlayed = wins + losses;
             const winRate = gamesPlayed ? Math.round((wins / gamesPlayed) * 100) : 0;
             return {
               player: row.username as string,
-              rating: Math.round(toNumber(row.rating)),
-              rd: Math.round(toNumber(row.rd)),
+              rating: Math.round(
+                toNumber(requestedFormat === "9-ball" ? row.rating_9ball : row.rating),
+              ),
+              rd: Math.round(toNumber(requestedFormat === "9-ball" ? row.rd_9ball : row.rd)),
               wins,
               losses,
-              streak: row.streak ?? 0,
+              streak: requestedFormat === "9-ball" ? (row.streak_9ball ?? 0) : (row.streak ?? 0),
               gamesPlayed,
               winRate,
             };
@@ -60,10 +67,10 @@ export async function GET(request: Request) {
       { revalidate: 60, tags: [CACHE_TAGS.leaderboard, CACHE_TAGS.profiles] },
     );
 
-    const leaderboard = await getLeaderboard(limit);
+    const leaderboard = await getLeaderboard(limit, format);
 
     return NextResponse.json(
-      { leaderboard },
+      { leaderboard, format },
       {
         headers: {
           "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",

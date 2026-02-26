@@ -1,10 +1,10 @@
 # Pool Tracker
 
-A Next.js app for recording 8-ball matches, computing Glicko ratings, and tracking streaks with Supabase auth and storage. Includes player profiles, leaderboards, pending game verification, and web push notifications.
+A Next.js app for recording pool matches, computing Glicko ratings, and tracking streaks with Supabase auth and storage. Includes player profiles, leaderboards, pending game verification, and web push notifications.
 
 ## Features
-- Record 1v1 and 2v2 8-ball matches
-- Glicko ratings, streaks, and rating history charts
+- Record 8-ball, 2v2 8-ball, and 9-ball matches
+- Separate Glicko ratings for 8-ball and 9-ball, plus streaks and rating history charts
 - Leaderboard and player profile pages
 - Pending game verification flow (opponent or admin)
 - Optional push notifications for verification requests

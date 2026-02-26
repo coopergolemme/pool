@@ -32,7 +32,9 @@ export async function GET(_request: Request, context: RouteContext) {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, username, email, rating, rd, vol, streak, wins, losses")
+          .select(
+            "id, username, email, rating, rd, vol, streak, wins, losses, rating_9ball, rd_9ball, vol_9ball, streak_9ball, wins_9ball, losses_9ball",
+          )
           .eq("approved", true)
           .eq("username", requestedUsername)
           .maybeSingle();
@@ -87,6 +89,12 @@ export async function GET(_request: Request, context: RouteContext) {
             streak: profile.streak ?? 0,
             wins: profile.wins ?? 0,
             losses: profile.losses ?? 0,
+            rating9Ball: toNumber(profile.rating_9ball),
+            rd9Ball: toNumber(profile.rd_9ball),
+            vol9Ball: toNumber(profile.vol_9ball),
+            streak9Ball: profile.streak_9ball ?? 0,
+            wins9Ball: profile.wins_9ball ?? 0,
+            losses9Ball: profile.losses_9ball ?? 0,
           },
           games,
           ratingHistory,

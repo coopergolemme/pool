@@ -8,6 +8,7 @@ import {
   type GlickoPlayer,
 } from "./glicko";
 import { mapGame, type DbGame } from "./types";
+import { getRatingTrack, is2v2Format, type RatingTrack } from "./rating-track";
 
 const PROFILE_BATCH_SIZE = 500;
 const RATING_CHANGE_BATCH_SIZE = 1000;
@@ -43,6 +44,12 @@ type ProfileUpdate = {
   wins: number;
   losses: number;
   streak: number;
+  rating_9ball: number;
+  rd_9ball: number;
+  vol_9ball: number;
+  wins_9ball: number;
+  losses_9ball: number;
+  streak_9ball: number;
 };
 
 export type BackfillResult = {
@@ -118,11 +125,16 @@ export async function runRatingsBackfill(
     }
   }
 
-  const players = new Map<string, GlickoPlayer>();
+  const playersByTrack: Record<RatingTrack, Map<string, GlickoPlayer>> = {
+    "8-ball": new Map<string, GlickoPlayer>(),
+    "9-ball": new Map<string, GlickoPlayer>(),
+  };
   const ratingChanges: RatingChangeInsert[] = [];
 
   for (const game of games) {
-    const is2v2 = game.format === "8-ball-2v2";
+    const track = getRatingTrack(game.format);
+    const players = playersByTrack[track];
+    const is2v2 = is2v2Format(game.format);
     const [sideA, sideB] = game.players;
     if (!sideA || !sideB || !game.winner) continue;
 
@@ -193,20 +205,32 @@ export async function runRatingsBackfill(
   }
 
   const profileUpdates: ProfileUpdate[] = [];
+  const updatedUsernames = new Set<string>([
+    ...playersByTrack["8-ball"].keys(),
+    ...playersByTrack["9-ball"].keys(),
+  ]);
 
-  for (const [username, stats] of players.entries()) {
+  for (const username of updatedUsernames) {
     const profile = profileByUsername.get(username);
     if (!profile) continue;
+    const stats8 = playersByTrack["8-ball"].get(username) ?? defaultPlayer();
+    const stats9 = playersByTrack["9-ball"].get(username) ?? defaultPlayer();
     profileUpdates.push({
       id: profile.id,
       email: profile.email,
       username,
-      rating: stats.rating,
-      rd: stats.rd,
-      vol: stats.vol,
-      wins: stats.wins,
-      losses: stats.losses,
-      streak: stats.streak,
+      rating: stats8.rating,
+      rd: stats8.rd,
+      vol: stats8.vol,
+      wins: stats8.wins,
+      losses: stats8.losses,
+      streak: stats8.streak,
+      rating_9ball: stats9.rating,
+      rd_9ball: stats9.rd,
+      vol_9ball: stats9.vol,
+      wins_9ball: stats9.wins,
+      losses_9ball: stats9.losses,
+      streak_9ball: stats9.streak,
     });
   }
 
@@ -228,6 +252,6 @@ export async function runRatingsBackfill(
     gamesProcessed: games.length,
     profilesUpdated: profileUpdates.length,
     ratingChangesUpserted: ratingChanges.length,
-    updatedUsernames: Array.from(players.keys()),
+    updatedUsernames: Array.from(updatedUsernames),
   };
 }

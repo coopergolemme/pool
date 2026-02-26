@@ -58,7 +58,7 @@ export async function GET(request: Request) {
 type CreateGamePayload = {
   date?: string;
   table_name?: string;
-  format?: "8-ball" | "8-ball-2v2";
+  format?: "8-ball" | "8-ball-2v2" | "9-ball";
   race_to?: number;
   player_a?: string;
   player_b?: string;

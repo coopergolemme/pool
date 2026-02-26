@@ -2,7 +2,7 @@ export type Game = {
   id: string;
   date: string;
   table: string;
-  format: "8-ball" | "8-ball-2v2";
+  format: "8-ball" | "8-ball-2v2" | "9-ball";
   players: [string, string];
   winner: string;
   score: string;
